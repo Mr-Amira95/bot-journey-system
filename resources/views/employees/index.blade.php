@@ -264,13 +264,7 @@
                                    :class="submitted && !formData.email.trim() ? 'border-red-400' : 'border-slate-300'"
                                    placeholder="jane@company.com">
                         </div>
-                        <div x-show="mode === 'create'">
-                            <label class="block text-xs font-mono font-medium text-slate-600 mb-1.5 uppercase tracking-wider">Password <span class="text-red-500">*</span></label>
-                            <input type="password" name="password" x-ref="password"
-                                   class="w-full rounded-lg border px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E26B3D] font-mono"
-                                   :class="submitted && mode === 'create' && !$refs.password?.value ? 'border-red-400' : 'border-slate-300'"
-                                   placeholder="Min. 8 characters">
-                        </div>
+
                         <div class="grid grid-cols-2 gap-3">
                             <div>
                                 <label class="block text-xs font-mono font-medium text-slate-600 mb-1.5 uppercase tracking-wider">Status</label>

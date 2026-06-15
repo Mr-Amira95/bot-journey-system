@@ -36,6 +36,8 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthController::class, 'login'])->name('login.post');
     Route::get('/forgot-password', [AuthController::class, 'showForgotPassword'])->name('password.request');
     Route::post('/forgot-password', [AuthController::class, 'sendResetLink'])->name('password.email');
+    Route::get('/reset-password/{token}', [AuthController::class, 'showResetPassword'])->name('password.reset');
+    Route::post('/reset-password', [AuthController::class, 'resetPassword'])->name('password.update');
 });
 
 Route::middleware('auth')->group(function () {
@@ -66,6 +68,7 @@ Route::middleware(['auth', 'password.change'])->group(function () {
         Route::post('/{employee}/send-job-offer', [EmployeeController::class, 'sendJobOffer'])->name('send-job-offer');
         Route::post('/{employee}/send-contract', [EmployeeController::class, 'sendContract'])->name('send-contract');
         Route::post('/{employee}/regenerate-documents', [EmployeeController::class, 'regenerateDocuments'])->name('regenerate-documents');
+        Route::post('/{employee}/send-reset-password', [EmployeeController::class, 'sendResetPassword'])->name('send-reset-password');
     });
 
     Route::prefix('projects')->name('projects.')->group(function () {

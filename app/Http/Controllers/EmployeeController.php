@@ -15,6 +15,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 
 class EmployeeController extends Controller
 {
@@ -73,7 +75,6 @@ class EmployeeController extends Controller
         $validated = $request->validate([
             'name'              => ['required', 'string', 'max:255'],
             'email'             => ['required', 'email', 'unique:users,email'],
-            'password'          => ['required', 'string', 'min:8'],
             'status'            => ['required', 'string', 'in:active,inactive,suspended'],
             'profile_image'     => ['nullable', 'image', 'max:2048'],
             'department_id'     => ['required', 'exists:departments,id'],
@@ -101,7 +102,7 @@ class EmployeeController extends Controller
         $user = User::create([
             'name'                 => $validated['name'],
             'email'                => $validated['email'],
-            'password'             => $validated['password'],
+            'password'             => Str::random(24),
             'status'               => $validated['status'],
             'profile_image'        => $profileImage,
             'must_change_password' => true,
@@ -132,8 +133,10 @@ class EmployeeController extends Controller
         $employee = Employee::where('user_id', $user->id)->first();
         app(DocumentService::class)->generateEmployeeDocuments($employee);
 
+        Password::broker()->sendResetLink(['email' => $user->email]);
+
         return redirect()->route('employees.index')
-            ->with('success', 'Employee created successfully.');
+            ->with('success', 'Employee created successfully. A link to set their password has been emailed to them.');
     }
 
     public function update(Request $request, Employee $employee)
@@ -279,5 +282,14 @@ class EmployeeController extends Controller
         app(DocumentService::class)->generateEmployeeDocuments($employee);
 
         return back()->with('success', 'Documents regenerated successfully.');
+    }
+
+    public function sendResetPassword(Employee $employee)
+    {
+        abort_unless(auth()->user()->hasPermission('edit_employees'), 403);
+
+        Password::broker()->sendResetLink(['email' => $employee->user->email]);
+
+        return back()->with('success', 'Password reset link sent to ' . $employee->user->email);
     }
 }

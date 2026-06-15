@@ -87,4 +87,34 @@ class AuthController extends Controller
             ? back()->with('status', __($status))
             : back()->withErrors(['email' => __($status)])->withInput();
     }
+
+    public function showResetPassword(Request $request, $token)
+    {
+        return view('auth.reset-password', ['token' => $token, 'email' => $request->email]);
+    }
+
+    public function resetPassword(Request $request)
+    {
+        $request->validate([
+            'token'    => ['required'],
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function ($user, $password) {
+                $user->forceFill([
+                    'password'             => $password,
+                    'must_change_password' => false,
+                ])->save();
+
+                Auth::login($user);
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? redirect()->route('whiteboards.index')->with('success', __($status))
+            : back()->withErrors(['email' => __($status)])->withInput();
+    }
 }
