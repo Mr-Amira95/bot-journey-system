@@ -49,8 +49,7 @@
 @endphp
 
 <div class="-mx-6 -mt-6 flex flex-col bg-gray-950 text-white overflow-hidden" style="height: calc(100vh - 4rem)"
-     x-data="callPanel()"
-     x-init="init()">
+     x-data="callPanel()">
 
     {{-- Agora connection error --}}
     <div x-show="agoraError"

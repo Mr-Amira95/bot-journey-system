@@ -11,6 +11,7 @@
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
         "mpdf/mpdf": "*",
+        "peterujah/php-agora-tokens": "^1.1",
         "pusher/pusher-php-server": "^7.2"
     },
     "require-dev": {
@@ -26,7 +27,8 @@
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
+            "Database\\Seeders\\": "database/seeders/",
+            "Peterujah\\Agora\\": "vendor/peterujah/php-agora-tokens/src/"
         }
     },
     "autoload-dev": {

@@ -2,26 +2,27 @@
 
 namespace App\Services;
 
-/**
- * Agora RTC Token Builder (AccessToken v1 — "006" prefix).
- * Implements the algorithm from https://github.com/AgoraIO/Tools/tree/master/DynamicKey/AgoraDynamicKey/php
- */
+// Manually require library files to ensure environment compatibility without autoloader issues
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Agora.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Util.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Roles.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Privileges.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/User.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/BaseService.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Message.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Tokens/AccessToken.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Services/Rtc.php');
+require_once base_path('vendor/peterujah/php-agora-tokens/src/Builders/RtcToken.php');
+
+use Peterujah\Agora\Agora;
+use Peterujah\Agora\User;
+use Peterujah\Agora\Roles;
+use Peterujah\Agora\Builders\RtcToken;
+
 class AgoraTokenService
 {
-    const VERSION = '006';
-
-    // Privilege keys
-    const PRIV_JOIN_CHANNEL  = 1;
-    const PRIV_PUBLISH_AUDIO = 2;
-    const PRIV_PUBLISH_VIDEO = 3;
-    const PRIV_PUBLISH_DATA  = 4;
-
-    // Roles
-    const ROLE_PUBLISHER  = 1;
-    const ROLE_SUBSCRIBER = 2;
-
-    private string $appId;
-    private string $appCertificate;
+    private ?string $appId;
+    private ?string $appCertificate;
 
     public function __construct()
     {
@@ -29,49 +30,36 @@ class AgoraTokenService
         $this->appCertificate = config('services.agora.certificate');
     }
 
+    /**
+     * Build RTC Token using User UID
+     *
+     * @param string $channelName
+     * @param int $uid
+     * @param int $expireSeconds
+     * @return string|null
+     */
     public function buildTokenWithUid(
         string $channelName,
         int    $uid,
-        int    $role          = self::ROLE_PUBLISHER,
         int    $expireSeconds = 7200
-    ): string {
-        $expireTs = time() + $expireSeconds;
-        $salt     = rand(1, 99999999);
-        $ts       = time();
-        $userStr  = strval($uid);
-
-        // Build privilege map
-        $privileges = [
-            self::PRIV_JOIN_CHANNEL  => $expireTs,
-            self::PRIV_PUBLISH_AUDIO => $expireTs,
-            self::PRIV_PUBLISH_VIDEO => $expireTs,
-            self::PRIV_PUBLISH_DATA  => $expireTs,
-        ];
-        ksort($privileges);
-
-        // Pack the message (little-endian)
-        $msg  = pack('V', $salt);                   // uint32 LE
-        $msg .= pack('V', $ts);                     // uint32 LE
-        $msg .= pack('v', count($privileges));      // uint16 LE
-        foreach ($privileges as $key => $value) {
-            $msg .= pack('v', $key);                // uint16 LE
-            $msg .= pack('V', $value);              // uint32 LE
+    ): ?string {
+        if (empty($this->appId) || empty($this->appCertificate)) {
+            return null;
         }
 
-        // Signature = HMAC-SHA256(appId + channelName + uid + msg, appCertificate)
-        $val = $this->appId . $channelName . $userStr . $msg;
-        $sig = hash_hmac('sha256', $val, $this->appCertificate, true); // raw 32 bytes
+        try {
+            $client = new Agora($this->appId, $this->appCertificate);
+            $client->setExpiration(time() + $expireSeconds);
 
-        // CRC values
-        $crcChannel = crc32($channelName) & 0xffffffff;
-        $crcUser    = crc32($userStr)     & 0xffffffff;
+            $user = new User($uid);
+            $user->setChannel($channelName);
+            $user->setRole(Roles::RTC_PUBLISHER);
+            $user->setPrivilegeExpire(time() + $expireSeconds);
 
-        // Content = packString(sig) + uint32(crcChannel) + uint32(crcUser) + msg
-        $content  = pack('v', strlen($sig)) . $sig;   // uint16-prefixed string
-        $content .= pack('V', $crcChannel);
-        $content .= pack('V', $crcUser);
-        $content .= $msg;
-
-        return self::VERSION . $this->appId . base64_encode($content);
+            return RtcToken::buildTokenWithUid($client, $user);
+        } catch (\Exception $e) {
+            \Log::error('[AgoraTokenService] Token generation failed: ' . $e->getMessage());
+            return null;
+        }
     }
 }
