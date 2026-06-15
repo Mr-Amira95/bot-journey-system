@@ -39,33 +39,36 @@
         Chats
     </a>
 
-    {{-- Audio call button --}}
-    <form method="POST" action="{{ route('calls.store') }}" class="inline">
-        @csrf
-        <input type="hidden" name="conversation_id" value="{{ $conversation->id }}">
-        <input type="hidden" name="type" value="audio">
-        <button type="submit"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
-            </svg>
-            Audio
-        </button>
-    </form>
+    {{-- Audio & Video call buttons if user has access to calls --}}
+    @if(auth()->user()->hasPermission('create_calls'))
+        {{-- Audio call button --}}
+        <form method="POST" action="{{ route('calls.store') }}" class="inline">
+            @csrf
+            <input type="hidden" name="conversation_id" value="{{ $conversation->id }}">
+            <input type="hidden" name="type" value="audio">
+            <button type="submit"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                </svg>
+                Audio
+            </button>
+        </form>
 
-    {{-- Video call button --}}
-    <form method="POST" action="{{ route('calls.store') }}" class="inline">
-        @csrf
-        <input type="hidden" name="conversation_id" value="{{ $conversation->id }}">
-        <input type="hidden" name="type" value="video">
-        <button type="submit"
-                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-            </svg>
-            Video
-        </button>
-    </form>
+        {{-- Video call button --}}
+        <form method="POST" action="{{ route('calls.store') }}" class="inline">
+            @csrf
+            <input type="hidden" name="conversation_id" value="{{ $conversation->id }}">
+            <input type="hidden" name="type" value="video">
+            <button type="submit"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-purple-50 text-purple-600 hover:bg-purple-100 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.87v6.26a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Video
+            </button>
+        </form>
+    @endif
     @if($conversation->created_by === auth()->id())
         <div x-data="{ confirm: false }">
             <button x-show="!confirm" @click="confirm = true"

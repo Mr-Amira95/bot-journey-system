@@ -19,6 +19,7 @@ class CallController extends Controller
 {
     public function index()
     {
+        abort_unless(auth()->user()->hasPermission('view_calls'), 403);
         $userId = auth()->id();
 
         $calls = Call::whereHas('participants', fn ($q) => $q->where('user_id', $userId))
@@ -32,6 +33,7 @@ class CallController extends Controller
 
     public function store(Request $request)
     {
+        abort_unless(auth()->user()->hasPermission('create_calls'), 403);
         $data = $request->validate([
             'conversation_id' => ['required', 'exists:conversations,id'],
             'type'            => ['required', Rule::enum(CallType::class)],
@@ -87,6 +89,7 @@ class CallController extends Controller
 
     public function show(Call $call)
     {
+        abort_unless(auth()->user()->hasPermission('view_calls'), 403);
         $userId = auth()->id();
 
         $participant = $call->participants()->where('user_id', $userId)->firstOrFail();
