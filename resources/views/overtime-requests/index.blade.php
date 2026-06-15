@@ -1,0 +1,279 @@
+@extends('layouts.app')
+
+@section('title', 'Overtime Requests')
+@section('page-title', 'Overtime Requests')
+
+@section('header-actions')
+    @if(auth()->user()->hasPermission('create_overtime_requests'))
+    <button @click="$dispatch('panel:create')"
+            class="inline-flex items-center gap-2 rounded-lg bg-[#E26B3D] px-4 py-2 text-sm font-mono font-medium text-white hover:bg-[#c8602a] transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        Log Overtime
+    </button>
+    @endif
+@endsection
+
+@section('content')
+@if($canViewAll)
+<div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1 w-fit mb-5">
+    <a href="{{ route('overtime-requests.index', ['tab' => 'mine']) }}"
+       class="px-4 py-2 rounded-lg text-sm font-medium transition-all {{ $tab === 'mine' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700' }}">
+        My Overtime
+    </a>
+    <a href="{{ route('overtime-requests.index', ['tab' => 'all']) }}"
+       class="px-4 py-2 rounded-lg text-sm font-medium transition-all {{ $tab === 'all' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700' }}">
+        All Overtime
+    </a>
+</div>
+@endif
+
+<div x-data="{
+    open: {{ $errors->any() ? 'true' : 'false' }},
+    mode: '{{ old('_mode', 'create') }}',
+    recordId: {{ old('record_id', 'null') }},
+    submitted: false,
+    formData: {
+        date:       '{{ old('date', '') }}',
+        start_time: '{{ old('start_time', '') }}',
+        end_time:   '{{ old('end_time', '') }}',
+        multiplier: '{{ old('multiplier', '1.5') }}',
+        reason:     '{{ old('reason', '') }}'
+    },
+    openCreate() {
+        this.mode = 'create'; this.recordId = null; this.submitted = false;
+        this.formData = { date: '', start_time: '', end_time: '', multiplier: '1.5', reason: '' };
+        this.open = true;
+    },
+    openEdit(data) {
+        this.mode = 'edit'; this.recordId = data.id; this.submitted = false;
+        this.formData = data; this.open = true;
+    },
+    close() { this.open = false; this.submitted = false; }
+}" @panel:create.window="openCreate()">
+
+    {{-- Filters --}}
+    <div class="mb-5">
+        <form method="GET" action="{{ route('overtime-requests.index') }}" class="flex flex-wrap items-center gap-3">
+            <input type="hidden" name="tab" value="{{ $tab }}">
+            <select name="status" class="py-2 pl-3 pr-8 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#E26B3D] font-mono">
+                <option value="">All Statuses</option>
+                @foreach($statuses as $s)
+                    <option value="{{ $s->value }}" {{ request('status') === $s->value ? 'selected' : '' }}>{{ ucfirst($s->value) }}</option>
+                @endforeach
+            </select>
+            @if($tab === 'all')
+            <select name="employee_id" class="py-2 pl-3 pr-8 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#E26B3D] font-mono">
+                <option value="">All Employees</option>
+                @foreach($employees as $emp)
+                    <option value="{{ $emp->id }}" {{ request('employee_id') == $emp->id ? 'selected' : '' }}>{{ $emp->user->name }}</option>
+                @endforeach
+            </select>
+            @endif
+            <button type="submit" class="px-4 py-2 rounded-lg bg-white border border-slate-300 text-sm text-slate-700 hover:bg-stone-50 transition-colors font-mono">Filter</button>
+            @if(request()->hasAny(['status', 'employee_id']))
+                <a href="{{ route('overtime-requests.index', ['tab' => $tab]) }}" class="text-sm text-slate-500 hover:text-slate-700 font-mono">Clear</a>
+            @endif
+        </form>
+    </div>
+
+    {{-- Table --}}
+    <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-stone-50 border-b border-slate-200">
+                <tr>
+                    @if($tab === 'all')<th class="text-left px-5 py-3.5 text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">Employee</th>@endif
+                    <th class="text-left px-5 py-3.5 text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">Date</th>
+                    <th class="text-left px-5 py-3.5 text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">Time</th>
+                    <th class="text-left px-5 py-3.5 text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">Hours</th>
+                    <th class="text-left px-5 py-3.5 text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">Rate</th>
+                    <th class="text-left px-5 py-3.5 text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">Status</th>
+                    <th class="text-right px-5 py-3.5 text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                @php
+                    $statusColors = [
+                        'pending'  => 'bg-amber-100 text-amber-700',
+                        'approved' => 'bg-emerald-100 text-emerald-700',
+                        'rejected' => 'bg-red-100 text-red-700',
+                    ];
+                @endphp
+                @php
+                    $canApproveOT = auth()->user()->hasPermission('approve_overtime_requests');
+                    $canEditOT    = auth()->user()->hasPermission('edit_overtime_requests');
+                    $canDeleteOT  = auth()->user()->hasPermission('delete_overtime_requests');
+                @endphp
+                @forelse($overtimeRequests as $req)
+                    @php $sc = $statusColors[$req->status->value] ?? 'bg-slate-100 text-slate-600'; @endphp
+                    <tr class="hover:bg-stone-50/60 transition-colors">
+                        @if($tab === 'all')
+                        <td class="px-5 py-4 font-medium text-slate-800">{{ $req->employee->user->name }}</td>
+                        @endif
+                        <td class="px-5 py-4 font-mono text-xs text-slate-700">{{ $req->date->format('M d, Y') }}</td>
+                        <td class="px-5 py-4 font-mono text-xs text-slate-600">{{ $req->start_time }} – {{ $req->end_time }}</td>
+                        <td class="px-5 py-4 font-mono font-medium text-slate-800">{{ $req->hours }}h</td>
+                        <td class="px-5 py-4 font-mono text-xs text-slate-600">×{{ $req->multiplier }}</td>
+                        <td class="px-5 py-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-medium {{ $sc }}">
+                                {{ ucfirst($req->status->value) }}
+                            </span>
+                        </td>
+                        <td class="px-5 py-4 text-right">
+                            <div class="inline-flex items-center gap-1.5">
+                                @if($req->status->value === 'pending')
+                                    @if($canApproveOT)
+                                        <form method="POST" action="{{ route('overtime-requests.approve', $req) }}" class="inline">
+                                            @csrf
+                                            <button type="submit" onclick="return confirm('Approve this overtime request?')"
+                                                    class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors" title="Approve">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                        <form method="POST" action="{{ route('overtime-requests.reject', $req) }}" class="inline">
+                                            @csrf
+                                            <button type="submit" onclick="return confirm('Reject this overtime request?')"
+                                                    class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Reject">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    @if($canEditOT)
+                                    <button @click="openEdit({
+                                                id:         {{ $req->id }},
+                                                date:       '{{ $req->date->format('Y-m-d') }}',
+                                                start_time: '{{ $req->start_time }}',
+                                                end_time:   '{{ $req->end_time }}',
+                                                multiplier: '{{ $req->multiplier }}',
+                                                reason:     `{{ e($req->reason ?? '') }}`
+                                            })"
+                                            class="p-1.5 rounded-lg text-slate-400 hover:text-[#E26B3D] hover:bg-[#E26B3D]/10 transition-colors" title="Edit">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                    </button>
+                                    @endif
+                                @endif
+                                @if($canDeleteOT)
+                                <button @click="$dispatch('confirm:delete', { action: '{{ route('overtime-requests.destroy', $req) }}' })"
+                                        class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                </button>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="{{ $tab === 'all' ? 7 : 6 }}" class="px-5 py-14 text-center">
+                            <p class="text-slate-400 font-mono text-sm">No overtime requests found.</p>
+                            @if(auth()->user()->hasPermission('create_overtime_requests'))
+                            <button @click="$dispatch('panel:create')" class="mt-3 text-sm text-[#E26B3D] hover:underline font-mono">Log the first one</button>
+                            @endif
+                        </td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </table>
+        </div>
+        @if($overtimeRequests->hasPages())
+            <div class="px-5 py-3 border-t border-slate-100">{{ $overtimeRequests->links() }}</div>
+        @endif
+    </div>
+
+    {{-- Backdrop --}}
+    <div x-show="open" @click="close()"
+         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black/40 z-40" style="display:none;"></div>
+
+    {{-- Slide-over --}}
+    <div x-show="open"
+         x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
+         class="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 flex flex-col" style="display:none;">
+
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
+            <h2 class="text-base font-semibold text-slate-800" x-text="mode === 'create' ? 'Log Overtime' : 'Edit Overtime Request'"></h2>
+            <button @click="close()" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </button>
+        </div>
+
+        @if($errors->any())
+            <div class="mx-6 mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
+                <ul class="text-xs text-red-600 space-y-0.5">
+                    @foreach($errors->all() as $err)<li>{{ $err }}</li>@endforeach
+                </ul>
+            </div>
+        @endif
+
+        <form method="POST"
+              :action="mode === 'create' ? '{{ route('overtime-requests.store') }}' : '{{ url('overtime-requests') }}/' + recordId"
+              @submit="submitted = true"
+              class="flex-1 overflow-y-auto flex flex-col">
+            @csrf
+            <input type="hidden" name="_mode" :value="mode">
+            <input type="hidden" name="record_id" :value="recordId">
+
+            <div class="px-6 py-6 space-y-6 flex-1">
+                <div>
+                    <h3 class="text-xs font-mono font-semibold text-slate-400 uppercase tracking-widest mb-4">Overtime Details</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Date <span class="text-red-500">*</span></label>
+                            <input type="date" name="date" :value="formData.date"
+                                   class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors"
+                                   :class="submitted && !formData.date ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1.5">Start Time <span class="text-red-500">*</span></label>
+                                <input type="time" name="start_time" :value="formData.start_time"
+                                       class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 font-mono transition-colors"
+                                       :class="submitted && !formData.start_time ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1.5">End Time <span class="text-red-500">*</span></label>
+                                <input type="time" name="end_time" :value="formData.end_time"
+                                       class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 font-mono transition-colors"
+                                       :class="submitted && !formData.end_time ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Pay Multiplier</label>
+                            <input type="number" name="multiplier" :value="formData.multiplier" step="0.25" min="1"
+                                   placeholder="1.5"
+                                   class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 font-mono transition-colors">
+                            <p class="text-xs text-slate-400 mt-1">1.5 = time-and-a-half, 2.0 = double time</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Reason <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea name="reason" rows="3"
+                                      x-effect="$el.value = formData.reason"
+                                      placeholder="Why was overtime required?"
+                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-slate-100 shrink-0 flex gap-3">
+                <button type="submit"
+                        class="flex-1 bg-[#E26B3D] hover:bg-[#c8602a] text-white text-sm font-medium py-2.5 rounded-lg transition-colors font-mono"
+                        x-text="mode === 'create' ? 'Submit Request' : 'Save Changes'"></button>
+                <button type="button" @click="close()"
+                        class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-mono">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endsection
