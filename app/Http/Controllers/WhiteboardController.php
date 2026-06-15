@@ -68,7 +68,7 @@ class WhiteboardController extends Controller
     public function show(Whiteboard $whiteboard)
     {
         $canOversee = auth()->user()->hasPermission('view_all_whiteboards');
-        $isOwner    = $whiteboard->user_id === auth()->id();
+        $isOwner    = $whiteboard->user_id == auth()->id();
         $isShared   = $whiteboard->shares()->where('shared_with_user_id', auth()->id())->exists();
 
         abort_unless($isOwner || $canOversee || $isShared, 403);
@@ -88,7 +88,7 @@ class WhiteboardController extends Controller
 
     public function rename(Request $request, Whiteboard $whiteboard)
     {
-        abort_unless($whiteboard->user_id === auth()->id(), 403);
+        abort_unless($whiteboard->user_id == auth()->id(), 403);
 
         $request->validate(['title' => ['required', 'string', 'max:255']]);
 
@@ -100,7 +100,7 @@ class WhiteboardController extends Controller
     public function save(Request $request, Whiteboard $whiteboard)
     {
         $isShared = $whiteboard->shares()->where('shared_with_user_id', auth()->id())->exists();
-        abort_unless($whiteboard->user_id === auth()->id() || $isShared, 403);
+        abort_unless($whiteboard->user_id == auth()->id() || $isShared, 403);
 
         $request->validate([
             'canvas_data'   => ['nullable', 'string'],
@@ -133,7 +133,7 @@ class WhiteboardController extends Controller
     public function attach(Request $request, Whiteboard $whiteboard)
     {
         $isShared = $whiteboard->shares()->where('shared_with_user_id', auth()->id())->exists();
-        abort_unless($whiteboard->user_id === auth()->id() || $isShared, 403);
+        abort_unless($whiteboard->user_id == auth()->id() || $isShared, 403);
 
         $request->validate([
             'file' => ['required', 'file', 'max:51200'],
@@ -164,7 +164,7 @@ class WhiteboardController extends Controller
 
     public function destroy(Whiteboard $whiteboard)
     {
-        abort_unless($whiteboard->user_id === auth()->id(), 403);
+        abort_unless($whiteboard->user_id == auth()->id(), 403);
 
         if ($whiteboard->file_path) {
             $path = public_path('wb/' . $whiteboard->file_path);
@@ -180,7 +180,7 @@ class WhiteboardController extends Controller
 
     public function share(Request $request, Whiteboard $whiteboard)
     {
-        abort_unless($whiteboard->user_id === auth()->id(), 403);
+        abort_unless($whiteboard->user_id == auth()->id(), 403);
 
         $data = $request->validate([
             'user_ids'   => ['required', 'array'],
@@ -205,7 +205,7 @@ class WhiteboardController extends Controller
 
     public function unshare(Whiteboard $whiteboard, WhiteboardShare $share)
     {
-        abort_unless($whiteboard->user_id === auth()->id(), 403);
+        abort_unless($whiteboard->user_id == auth()->id(), 403);
 
         $share->delete();
 

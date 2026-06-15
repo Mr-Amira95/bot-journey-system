@@ -13,6 +13,13 @@ class Whiteboard extends Model
 
     protected $fillable = ['user_id', 'title', 'file_path'];
 
+    protected function casts(): array
+    {
+        return [
+            'user_id' => 'integer',
+        ];
+    }
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
