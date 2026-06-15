@@ -9,6 +9,10 @@ return new class extends Migration
     {
         $sqlite = DB::connection()->getDriverName() === 'sqlite';
 
+        DB::statement('DROP VIEW IF EXISTS v_daily_attendance');
+        DB::statement('DROP VIEW IF EXISTS v_employee_leave_summary');
+        DB::statement('DROP VIEW IF EXISTS v_overtime_summary');
+        DB::statement('DROP VIEW IF EXISTS v_pending_approvals');
         DB::statement($this->dailyAttendanceView());
         DB::statement($this->employeeLeaveSummaryView());
         DB::statement($this->overtimeSummaryView($sqlite));

@@ -216,9 +216,6 @@
             <span class="text-xs">Undo</span>
         </button>
 
-        {{-- Auto-save status --}}
-        <div id="autoSaveStatus" class="flex items-center gap-1.5 px-2 shrink-0 text-xs text-slate-400 select-none" style="min-width:6rem;"></div>
-
         <div class="w-px h-8 bg-slate-200 shrink-0"></div>
 
         {{-- Clear --}}
@@ -423,7 +420,6 @@
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
         img.src = dataURL;
-        scheduleAutoSave();
     }
 
     // ── Canvas init ───────────────────────────────────────────────────────────
@@ -618,7 +614,6 @@
         if (!isDrawing) return;
         isDrawing = false;
         ctx.globalAlpha = 1.0;
-        scheduleAutoSave();
     }
 
     canvas.addEventListener('mousedown',  onStart);
@@ -711,38 +706,6 @@
         textFontSize = parseInt(e.target.value);
     });
 
-    // ── Auto-save ─────────────────────────────────────────────────────────────
-    const statusEl    = document.getElementById('autoSaveStatus');
-    let   autoSaveTimer = null;
-
-    function setStatus(html) { if (statusEl) statusEl.innerHTML = html; }
-
-    async function doSave() {
-        // Auto-save only persists elements (stickies, text, images) to avoid
-        // blocking the main thread with canvas.toDataURL() on a 4000×3000 canvas.
-        // The manual Save button (below) saves the full canvas drawing as well.
-        setStatus('<svg class="w-3.5 h-3.5 animate-spin inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 12a8 8 0 018-8"/></svg>Saving…');
-        try {
-            const res = await fetch('{{ route('whiteboards.save', $whiteboard) }}', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
-                body:    JSON.stringify({ elements_data: elements }),
-            });
-            if (!res.ok) throw new Error();
-            const t  = new Date();
-            const hm = String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0');
-            setStatus('<svg class="w-3.5 h-3.5 inline-block text-emerald-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg><span class="text-emerald-600">Saved ' + hm + '</span>');
-        } catch {
-            setStatus('<span class="text-red-400">Save failed</span>');
-        }
-    }
-
-    function scheduleAutoSave() {
-        clearTimeout(autoSaveTimer);
-        setStatus('<span class="text-slate-400">Unsaved changes</span>');
-        autoSaveTimer = setTimeout(doSave, 2000);
-    }
-
     // ── Undo button ───────────────────────────────────────────────────────────
     document.getElementById('undoBtn')?.addEventListener('click', undo);
 
@@ -757,7 +720,6 @@
         elemLayer.innerHTML = '';
         nextElemId        = 1;
         document.getElementById('clearModal')?.classList.add('hidden');
-        scheduleAutoSave();
     });
 
     // ── Save button ───────────────────────────────────────────────────────────
@@ -841,14 +803,12 @@
         const el = Object.assign({ id, type, x, y }, opts || {});
         elements.push(el);
         renderElement(el);
-        scheduleAutoSave();
         return el;
     }
 
     function removeElement(id) {
         elements = elements.filter(e => e.id !== id);
         document.getElementById(id)?.remove();
-        scheduleAutoSave();
     }
 
     function renderElement(el) {
