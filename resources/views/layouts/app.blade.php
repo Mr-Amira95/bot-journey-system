@@ -10,6 +10,22 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400;1,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <style>
+        @media (min-width: 1024px) {
+            .sidebar-expanded { width: 16rem !important; }
+            .sidebar-collapsed { width: 4rem !important; }
+            .header-expanded { left: 16rem !important; }
+            .header-collapsed { left: 4rem !important; }
+            .main-expanded { margin-left: 16rem !important; }
+            .main-collapsed { margin-left: 4rem !important; }
+            .desktop-toggle { display: flex !important; }
+            .mobile-toggle { display: none !important; }
+        }
+        @media (max-width: 1023px) {
+            .desktop-toggle { display: none !important; }
+            .mobile-toggle { display: block !important; }
+        }
+    </style>
 </head>
 @php
     $empActive    = request()->routeIs('employees*');
@@ -99,7 +115,8 @@ $expActive      = request()->routeIs('expense*');
                   -translate-x-full lg:translate-x-0 w-64"
            :class="{
                'translate-x-0': sidebarOpen,
-               'lg:w-16':       sidebarCollapsed,
+               'sidebar-collapsed': sidebarCollapsed,
+               'sidebar-expanded': !sidebarCollapsed,
            }">
 
         {{-- Logo --}}
@@ -107,11 +124,13 @@ $expActive      = request()->routeIs('expense*');
              :class="sidebarCollapsed ? 'justify-center' : 'px-4'">
             {{-- Icon only — collapsed --}}
             <img src="{{ asset('icon.png') }}" alt="Bot Journey"
-                 class="h-9 w-9 object-contain shrink-0"
+                 class="object-contain shrink-0"
+                 style="width: 2.25rem; height: 2.25rem;"
                  x-show="sidebarCollapsed">
             {{-- Full wordmark — expanded --}}
             <img src="{{ asset('logo.png') }}" alt="Bot Journey"
-                 class="h-8 object-contain max-w-full"
+                 class="object-contain max-w-full"
+                 style="height: 2rem;"
                  x-show="!sidebarCollapsed"
                  x-transition:enter="transition-opacity duration-150 delay-75"
                  x-transition:enter-start="opacity-0"
@@ -605,11 +624,14 @@ $expActive      = request()->routeIs('expense*');
     </aside>
 
     {{-- Top header --}}
-    <header class="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 z-10 flex items-center px-4 lg:px-6 gap-4 transition-all duration-200 ease-in-out"
-            :class="{ 'lg:left-64': !sidebarCollapsed, 'lg:left-16': sidebarCollapsed }">
+    <header class="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 z-10 flex items-center px-4 lg:px-6 gap-4 transition-all duration-200 ease-in-out lg:left-64"
+            :class="{
+                'header-collapsed': sidebarCollapsed,
+                'header-expanded': !sidebarCollapsed,
+            }">
         {{-- Mobile menu toggle --}}
         <button @click="sidebarOpen = !sidebarOpen"
-                class="lg:hidden p-2 rounded-lg text-slate-500 hover:bg-stone-100 hover:text-slate-700 transition-colors">
+                class="mobile-toggle p-2 rounded-lg text-slate-500 hover:bg-stone-100 hover:text-slate-700 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
@@ -617,7 +639,7 @@ $expActive      = request()->routeIs('expense*');
 
         {{-- Desktop sidebar toggle --}}
         <button @click="sidebarCollapsed = !sidebarCollapsed"
-                class="max-lg:hidden flex p-2 rounded-lg text-slate-500 hover:bg-stone-100 hover:text-slate-700 transition-colors">
+                class="desktop-toggle p-2 rounded-lg text-slate-500 hover:bg-stone-100 hover:text-slate-700 transition-colors">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
             </svg>
@@ -769,8 +791,11 @@ $expActive      = request()->routeIs('expense*');
     </header>
 
     {{-- Main content --}}
-    <main class="pt-16 min-h-screen transition-all duration-200 ease-in-out"
-          :class="{ 'lg:ml-64': !sidebarCollapsed, 'lg:ml-16': sidebarCollapsed }">
+    <main class="pt-16 min-h-screen transition-all duration-200 ease-in-out lg:ml-64"
+          :class="{
+              'main-collapsed': sidebarCollapsed,
+              'main-expanded': !sidebarCollapsed,
+          }">
         <div class="p-6">
             @include('components.flash-messages')
             @yield('content')
