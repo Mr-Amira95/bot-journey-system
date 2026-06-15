@@ -322,7 +322,7 @@ document.addEventListener('alpine:init', function () {
                     this.remoteUsers = this.remoteUsers.filter(u => u.uid !== user.uid);
                 });
 
-                await this._client.join(this.agoraAppId, this.channelName, this.agoraToken, this.uid);
+                await this._client.join(this.agoraAppId, this.channelName, this.agoraToken, String(this.uid));
 
                 if (this.isVideoCall) {
                     [this._micTrack, this._cameraTrack] = await AgoraRTC.createMicrophoneAndCameraTracks(
@@ -464,7 +464,7 @@ document.addEventListener('alpine:init', function () {
             },
 
             participantName(uid) {
-                const p = this.participants.find(p => p.user_id === uid);
+                const p = this.participants.find(p => p.user_id == uid);
                 return p ? p.name : 'User ' + uid;
             },
         };
