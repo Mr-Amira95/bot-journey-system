@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TaskLogAction;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskAssignee;
+use App\Models\TaskAttachment;
+use App\Models\TaskComment;
 use App\Models\User;
 use App\Notifications\TaskAssignedNotification;
+use App\Notifications\TaskCommentNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
@@ -105,7 +110,11 @@ class TaskController extends Controller
             abort_unless($owns, 403);
         }
 
-        $task->load(['project', 'createdBy', 'updatedBy', 'assignees.user']);
+        $task->load([
+            'project', 'createdBy', 'updatedBy', 'assignees.user',
+            'comments' => fn ($q) => $q->whereNull('parent_id')->with(['user', 'replies.user'])->oldest(),
+            'attachments.user',
+        ]);
 
         $canEditTasks   = auth()->user()->hasPermission('edit_tasks');
         $canDeleteTasks = auth()->user()->hasPermission('delete_tasks');
@@ -270,5 +279,109 @@ class TaskController extends Controller
         $task->delete();
 
         return back()->with('success', 'Task deleted.');
+    }
+
+    public function storeComment(Request $request, Task $task)
+    {
+        abort_unless(auth()->user()->hasPermission('edit_tasks'), 403);
+
+        $data = $request->validate([
+            'comment'   => ['required', 'string', 'max:5000'],
+            'parent_id' => ['nullable', 'exists:task_comments,id'],
+        ]);
+
+        if (! empty($data['parent_id'])) {
+            abort_unless(TaskComment::where('id', $data['parent_id'])->where('task_id', $task->id)->exists(), 403);
+        }
+
+        $comment = $task->comments()->create([
+            'user_id'   => auth()->id(),
+            'comment'   => $data['comment'],
+            'parent_id' => $data['parent_id'] ?? null,
+        ]);
+
+        $task->logs()->create([
+            'user_id'     => auth()->id(),
+            'action'      => TaskLogAction::CommentAdded,
+            'description' => 'Added a comment.',
+        ]);
+
+        $actor = auth()->user();
+        $task->load('assignees.user');
+        $recipients = $task->assignees->pluck('user')->filter(fn ($user) => $user && $user->id !== $actor->id)->unique('id');
+        foreach ($recipients as $recipient) {
+            $recipient->notify(new TaskCommentNotification($task, $comment, $actor));
+        }
+
+        return back()->with('success', 'Comment added.');
+    }
+
+    public function destroyComment(Task $task, TaskComment $comment)
+    {
+        abort_unless(auth()->user()->hasPermission('edit_tasks'), 403);
+        abort_if($comment->task_id !== $task->id, 403);
+
+        $comment->delete();
+
+        return back()->with('success', 'Comment deleted.');
+    }
+
+    public function storeAttachment(Request $request, Task $task)
+    {
+        abort_unless(auth()->user()->hasPermission('edit_tasks'), 403);
+
+        $request->validate([
+            'file' => [
+                'required',
+                'file',
+                'max:20480',
+                'mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip',
+            ],
+        ]);
+
+        $file = $request->file('file');
+        $path = $file->store('task-attachments/' . $task->id, 'public');
+
+        $task->attachments()->create([
+            'user_id'   => auth()->id(),
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_type' => $this->attachmentType($file->getClientOriginalExtension()),
+            'file_size' => $file->getSize(),
+        ]);
+
+        $task->logs()->create([
+            'user_id'     => auth()->id(),
+            'action'      => TaskLogAction::AttachmentAdded,
+            'description' => 'Added attachment "' . $file->getClientOriginalName() . '".',
+        ]);
+
+        return back()->with('success', 'Attachment uploaded.');
+    }
+
+    public function destroyAttachment(Task $task, TaskAttachment $attachment)
+    {
+        abort_unless(auth()->user()->hasPermission('edit_tasks'), 403);
+        abort_if($attachment->task_id !== $task->id, 403);
+
+        Storage::disk('public')->delete($attachment->file_path);
+        $attachment->delete();
+
+        return back()->with('success', 'Attachment deleted.');
+    }
+
+    private function attachmentType(string $extension): string
+    {
+        $extension = strtolower($extension);
+
+        return match (true) {
+            in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true) => 'photo',
+            in_array($extension, ['mp4', 'mov', 'avi', 'webm'], true)        => 'video',
+            $extension === 'pdf'                                             => 'pdf',
+            in_array($extension, ['doc', 'docx'], true)                      => 'word',
+            in_array($extension, ['xls', 'xlsx'], true)                      => 'excel',
+            in_array($extension, ['ppt', 'pptx'], true)                      => 'powerpoint',
+            default                                                          => 'file',
+        };
     }
 }

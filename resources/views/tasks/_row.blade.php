@@ -21,6 +21,17 @@
         dueOpen: false,
         assigneesOpen: false,
         saving: false,
+        menuStyle: '',
+        openMenu(el) {
+            const rect = el.getBoundingClientRect();
+            this.menuStyle = `top:${rect.bottom + 4}px; left:${rect.left}px;`;
+        },
+        closeMenus() {
+            this.statusOpen = false;
+            this.priorityOpen = false;
+            this.dueOpen = false;
+            this.assigneesOpen = false;
+        },
         async quickUpdate(payload) {
             this.saving = true;
             try {
@@ -73,6 +84,8 @@
             catch (e) { alert('Could not update assignees.'); }
         },
     }"
+    @scroll.window.throttle="closeMenus()"
+    @if($grouped ?? false) x-show="open" @endif
     class="hover:bg-slate-50 transition-colors">
     <td class="px-4 py-3">
         <a href="{{ route('tasks.show', $task) }}" class="font-medium text-slate-800 hover:text-[#E26B3D] transition-colors">
@@ -94,10 +107,10 @@
     </td>
 
     {{-- Status --}}
-    <td class="px-4 py-3 relative">
+    <td class="px-4 py-3">
         @if($canEditTasks)
-            <button type="button" @click="statusOpen = !statusOpen; priorityOpen = false; dueOpen = false; assigneesOpen = false"
-                    @click.outside="statusOpen = false"
+            <button type="button" x-ref="statusBtn"
+                    @click="if (!statusOpen) openMenu($refs.statusBtn); statusOpen = !statusOpen; priorityOpen = false; dueOpen = false; assigneesOpen = false"
                     :disabled="saving"
                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-slate-200 disabled:opacity-50"
                     :class="statusColors[status]">
@@ -106,27 +119,29 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
             </button>
-            <div x-show="statusOpen" x-transition
-                 class="absolute left-4 z-20 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
-                <template x-for="opt in statusOptions" :key="opt.value">
-                    <button type="button" @click="setStatus(opt.value)"
-                            class="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center gap-2"
-                            :class="opt.value === status ? 'font-semibold text-slate-800' : 'text-slate-600'">
-                        <span class="w-2 h-2 rounded-full shrink-0" :class="statusColors[opt.value].split(' ')[0]"></span>
-                        <span x-text="opt.label"></span>
-                    </button>
-                </template>
-            </div>
+            <template x-teleport="body">
+                <div x-show="statusOpen" x-transition @click.outside="statusOpen = false" :style="menuStyle"
+                     class="fixed z-[60] w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                    <template x-for="opt in statusOptions" :key="opt.value">
+                        <button type="button" @click="setStatus(opt.value)"
+                                class="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center gap-2"
+                                :class="opt.value === status ? 'font-semibold text-slate-800' : 'text-slate-600'">
+                            <span class="w-2 h-2 rounded-full shrink-0" :class="statusColors[opt.value].split(' ')[0]"></span>
+                            <span x-text="opt.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </template>
         @else
             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="statusColors[status]" x-text="statusLabel"></span>
         @endif
     </td>
 
     {{-- Priority --}}
-    <td class="px-4 py-3 relative">
+    <td class="px-4 py-3">
         @if($canEditTasks)
-            <button type="button" @click="priorityOpen = !priorityOpen; statusOpen = false; dueOpen = false; assigneesOpen = false"
-                    @click.outside="priorityOpen = false"
+            <button type="button" x-ref="priorityBtn"
+                    @click="if (!priorityOpen) openMenu($refs.priorityBtn); priorityOpen = !priorityOpen; statusOpen = false; dueOpen = false; assigneesOpen = false"
                     :disabled="saving"
                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-slate-200 disabled:opacity-50"
                     :class="priorityColors[priority]">
@@ -135,48 +150,52 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                 </svg>
             </button>
-            <div x-show="priorityOpen" x-transition
-                 class="absolute left-4 z-20 mt-1 w-36 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
-                <template x-for="opt in priorityOptions" :key="opt.value">
-                    <button type="button" @click="setPriority(opt.value)"
-                            class="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center gap-2"
-                            :class="opt.value === priority ? 'font-semibold text-slate-800' : 'text-slate-600'">
-                        <span class="w-2 h-2 rounded-full shrink-0" :class="priorityColors[opt.value].split(' ')[0]"></span>
-                        <span x-text="opt.label"></span>
-                    </button>
-                </template>
-            </div>
+            <template x-teleport="body">
+                <div x-show="priorityOpen" x-transition @click.outside="priorityOpen = false" :style="menuStyle"
+                     class="fixed z-[60] w-36 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                    <template x-for="opt in priorityOptions" :key="opt.value">
+                        <button type="button" @click="setPriority(opt.value)"
+                                class="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 flex items-center gap-2"
+                                :class="opt.value === priority ? 'font-semibold text-slate-800' : 'text-slate-600'">
+                            <span class="w-2 h-2 rounded-full shrink-0" :class="priorityColors[opt.value].split(' ')[0]"></span>
+                            <span x-text="opt.label"></span>
+                        </button>
+                    </template>
+                </div>
+            </template>
         @else
             <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium" :class="priorityColors[priority]" x-text="priorityLabel"></span>
         @endif
     </td>
 
     {{-- Due Date --}}
-    <td class="px-4 py-3 text-slate-600 font-mono text-xs relative">
+    <td class="px-4 py-3 text-slate-600 font-mono text-xs">
         @if($canEditTasks)
-            <button type="button"
-                    @click="dueOpen = true; statusOpen = false; priorityOpen = false; assigneesOpen = false; $nextTick(() => { $refs.dueDateInput.focus(); $refs.dueDateInput.showPicker && $refs.dueDateInput.showPicker(); })"
+            <button type="button" x-ref="dueBtn"
+                    @click="openMenu($refs.dueBtn); dueOpen = true; statusOpen = false; priorityOpen = false; assigneesOpen = false; $nextTick(() => { $refs.dueDateInput.focus(); $refs.dueDateInput.showPicker && $refs.dueDateInput.showPicker(); })"
                     class="hover:underline" :class="overdue ? 'text-red-600 font-semibold' : ''">
                 <span x-text="dueDateDisplay"></span>
             </button>
-            <div x-show="dueOpen" @click.outside="dueOpen = false"
-                 class="absolute left-4 z-20 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg p-3 flex items-center gap-2 font-sans">
-                <input type="date" x-ref="dueDateInput" x-model="dueDate"
-                       class="px-2 py-1 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40">
-                <button type="button" @click="saveDueDate()" :disabled="saving"
-                        class="px-2 py-1 text-xs bg-[#E26B3D] text-white rounded hover:bg-[#c85a2f] disabled:opacity-50">Save</button>
-                <button type="button" @click="dueOpen = false" class="px-2 py-1 text-xs text-slate-500 hover:text-slate-700">Cancel</button>
-            </div>
+            <template x-teleport="body">
+                <div x-show="dueOpen" x-transition @click.outside="dueOpen = false" :style="menuStyle"
+                     class="fixed z-[60] bg-white border border-slate-200 rounded-lg shadow-lg p-3 flex items-center gap-2 font-sans">
+                    <input type="date" x-ref="dueDateInput" x-model="dueDate"
+                           class="px-2 py-1 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40">
+                    <button type="button" @click="saveDueDate()" :disabled="saving"
+                            class="px-2 py-1 text-xs bg-[#E26B3D] text-white rounded hover:bg-[#c85a2f] disabled:opacity-50">Save</button>
+                    <button type="button" @click="dueOpen = false" class="px-2 py-1 text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+                </div>
+            </template>
         @else
             <span x-text="dueDateDisplay" :class="overdue ? 'text-red-600 font-semibold' : ''"></span>
         @endif
     </td>
 
     {{-- Assignees --}}
-    <td class="px-4 py-3 text-slate-600 relative">
+    <td class="px-4 py-3 text-slate-600">
         @if($canEditTasks)
-            <button type="button" @click="assigneesOpen = !assigneesOpen; statusOpen = false; priorityOpen = false; dueOpen = false"
-                    @click.outside="assigneesOpen = false"
+            <button type="button" x-ref="assigneesBtn"
+                    @click="if (!assigneesOpen) openMenu($refs.assigneesBtn); assigneesOpen = !assigneesOpen; statusOpen = false; priorityOpen = false; dueOpen = false"
                     class="inline-flex items-center gap-1 text-xs hover:text-[#E26B3D] transition-colors max-w-[10rem]">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -184,15 +203,17 @@
                 <span class="truncate" x-show="assignees.length" x-text="assignees.slice(0,2).map(a => a.name).join(', ') + (assignees.length > 2 ? ' +' + (assignees.length - 2) : '')"></span>
                 <span class="text-slate-400" x-show="!assignees.length">Unassigned</span>
             </button>
-            <div x-show="assigneesOpen" @click.outside="assigneesOpen = false"
-                 class="absolute left-4 z-20 mt-1 w-56 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg py-1">
-                <template x-for="u in $store.taskUsers" :key="u.id">
-                    <label class="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 cursor-pointer">
-                        <input type="checkbox" :checked="assigneeIds.includes(String(u.id))" @change="toggleAssignee(u.id)">
-                        <span x-text="u.name"></span>
-                    </label>
-                </template>
-            </div>
+            <template x-teleport="body">
+                <div x-show="assigneesOpen" x-transition @click.outside="assigneesOpen = false" :style="menuStyle"
+                     class="fixed z-[60] w-56 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                    <template x-for="u in $store.taskUsers" :key="u.id">
+                        <label class="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 cursor-pointer">
+                            <input type="checkbox" :checked="assigneeIds.includes(String(u.id))" @change="toggleAssignee(u.id)">
+                            <span x-text="u.name"></span>
+                        </label>
+                    </template>
+                </div>
+            </template>
         @else
             <span class="inline-flex items-center gap-1 text-xs text-slate-500" x-show="assignees.length" x-text="assignees.slice(0,2).map(a => a.name).join(', ') + (assignees.length > 2 ? ' +' + (assignees.length - 2) : '')"></span>
             <span class="text-slate-400 text-xs" x-show="!assignees.length">—</span>

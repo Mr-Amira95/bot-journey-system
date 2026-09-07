@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\LeaveDurationType;
 use App\Enums\LeaveRequestStatus;
 use App\Models\Employee;
 use App\Models\LeaveBalance;
@@ -13,6 +14,53 @@ use Illuminate\Http\Request;
 
 class LeaveRequestController extends Controller
 {
+    private const HOURS_PER_DAY = 8;
+
+    private function validationRules(): array
+    {
+        return [
+            'leave_type_id' => ['required', 'exists:leave_types,id'],
+            'duration_type' => ['required', 'in:full_day,hourly'],
+            'start_date'    => ['required', 'date'],
+            'end_date'      => ['required_if:duration_type,full_day', 'nullable', 'date', 'after_or_equal:start_date'],
+            'start_time'    => ['required_if:duration_type,hourly', 'nullable', 'date_format:H:i'],
+            'end_time'      => ['required_if:duration_type,hourly', 'nullable', 'date_format:H:i', 'after:start_time'],
+            'reason'        => ['nullable', 'string'],
+        ];
+    }
+
+    private function durationFields(Request $request): array
+    {
+        if ($request->duration_type === LeaveDurationType::Hourly->value) {
+            $start      = Carbon::parse($request->start_date.' '.$request->start_time);
+            $end        = Carbon::parse($request->start_date.' '.$request->end_time);
+            $totalHours = round($start->diffInMinutes($end) / 60, 2);
+
+            return [
+                'duration_type' => LeaveDurationType::Hourly->value,
+                'start_date'    => $request->start_date,
+                'end_date'      => $request->start_date,
+                'start_time'    => $request->start_time,
+                'end_time'      => $request->end_time,
+                'total_hours'   => $totalHours,
+                'total_days'    => round($totalHours / self::HOURS_PER_DAY, 2),
+            ];
+        }
+
+        $totalDays = Carbon::parse($request->start_date)
+            ->diffInWeekdays(Carbon::parse($request->end_date)) + 1;
+
+        return [
+            'duration_type' => LeaveDurationType::FullDay->value,
+            'start_date'    => $request->start_date,
+            'end_date'      => $request->end_date,
+            'start_time'    => null,
+            'end_time'      => null,
+            'total_hours'   => null,
+            'total_days'    => $totalDays,
+        ];
+    }
+
     public function index(Request $request)
     {
         abort_unless(auth()->user()->hasPermission('view_leave_requests'), 403);
@@ -50,35 +98,27 @@ class LeaveRequestController extends Controller
     public function store(Request $request)
     {
         abort_unless(auth()->user()->hasPermission('create_leave_requests'), 403);
-        $request->validate([
-            'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'start_date'    => ['required', 'date'],
-            'end_date'      => ['required', 'date', 'after_or_equal:start_date'],
-            'reason'        => ['nullable', 'string'],
-        ]);
+        $request->validate($this->validationRules());
 
         $employee = Employee::where('user_id', auth()->id())->first();
         if (!$employee) {
             return back()->withErrors(['employee' => 'No employee record is linked to your account.']);
         }
 
-        $totalDays = Carbon::parse($request->start_date)
-            ->diffInWeekdays(Carbon::parse($request->end_date)) + 1;
-
         $leaveType = LeaveType::findOrFail($request->leave_type_id);
         $status    = $leaveType->requires_approval
             ? LeaveRequestStatus::Pending->value
             : LeaveRequestStatus::Approved->value;
 
-        LeaveRequest::create([
-            'employee_id'   => $employee->id,
-            'leave_type_id' => $request->leave_type_id,
-            'start_date'    => $request->start_date,
-            'end_date'      => $request->end_date,
-            'total_days'    => $totalDays,
-            'reason'        => $request->reason,
-            'status'        => $status,
-        ]);
+        LeaveRequest::create(array_merge(
+            $this->durationFields($request),
+            [
+                'employee_id'   => $employee->id,
+                'leave_type_id' => $request->leave_type_id,
+                'reason'        => $request->reason,
+                'status'        => $status,
+            ]
+        ));
 
         return back()->with('success', 'Leave request submitted.');
     }
@@ -86,24 +126,16 @@ class LeaveRequestController extends Controller
     public function update(Request $request, LeaveRequest $leaveRequest)
     {
         abort_unless(auth()->user()->hasPermission('edit_leave_requests'), 403);
-        $request->validate([
-            'leave_type_id' => ['required', 'exists:leave_types,id'],
-            'start_date'    => ['required', 'date'],
-            'end_date'      => ['required', 'date', 'after_or_equal:start_date'],
-            'reason'        => ['nullable', 'string'],
-        ]);
+        $request->validate($this->validationRules());
 
-        $totalDays = Carbon::parse($request->start_date)
-            ->diffInWeekdays(Carbon::parse($request->end_date)) + 1;
-
-        $leaveRequest->update([
-            'leave_type_id' => $request->leave_type_id,
-            'start_date'    => $request->start_date,
-            'end_date'      => $request->end_date,
-            'total_days'    => $totalDays,
-            'reason'        => $request->reason,
-            'status'        => LeaveRequestStatus::Pending->value,
-        ]);
+        $leaveRequest->update(array_merge(
+            $this->durationFields($request),
+            [
+                'leave_type_id' => $request->leave_type_id,
+                'reason'        => $request->reason,
+                'status'        => LeaveRequestStatus::Pending->value,
+            ]
+        ));
 
         return back()->with('success', 'Leave request updated.');
     }

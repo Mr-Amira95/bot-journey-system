@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\LeaveDurationType;
 use App\Enums\LeaveRequestStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,9 +16,13 @@ class LeaveRequest extends Model
     protected $fillable = [
         'employee_id',
         'leave_type_id',
+        'duration_type',
         'start_date',
         'end_date',
+        'start_time',
+        'end_time',
         'total_days',
+        'total_hours',
         'status',
         'reason',
         'approved_by',
@@ -28,12 +33,14 @@ class LeaveRequest extends Model
     protected function casts(): array
     {
         return [
-            'start_date'  => 'date',
-            'end_date'    => 'date',
-            'total_days'  => 'decimal:2',
-            'status'      => LeaveRequestStatus::class,
-            'approved_at' => 'datetime',
-            'deleted_at'  => 'datetime',
+            'duration_type' => LeaveDurationType::class,
+            'start_date'    => 'date',
+            'end_date'      => 'date',
+            'total_days'    => 'decimal:2',
+            'total_hours'   => 'decimal:2',
+            'status'        => LeaveRequestStatus::class,
+            'approved_at'   => 'datetime',
+            'deleted_at'    => 'datetime',
         ];
     }
 

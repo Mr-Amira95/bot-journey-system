@@ -17,7 +17,7 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        return redirect()->route('whiteboards.index');
+        return redirect()->route('tasks.index');
 
         $today = Carbon::today();
 

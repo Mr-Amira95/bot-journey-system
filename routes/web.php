@@ -148,6 +148,10 @@ Route::middleware(['auth', 'password.change'])->group(function () {
         Route::post('/{task}', [TaskController::class, 'update'])->name('update');
         Route::patch('/{task}/quick-update', [TaskController::class, 'quickUpdate'])->name('quick-update');
         Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');
+        Route::post('/{task}/comments', [TaskController::class, 'storeComment'])->name('comments.store');
+        Route::delete('/{task}/comments/{comment}', [TaskController::class, 'destroyComment'])->name('comments.destroy');
+        Route::post('/{task}/attachments', [TaskController::class, 'storeAttachment'])->name('attachments.store');
+        Route::delete('/{task}/attachments/{attachment}', [TaskController::class, 'destroyAttachment'])->name('attachments.destroy');
     });
 
     // ── Finance ──────────────────────────────────────────────────────────────
@@ -288,4 +292,4 @@ Route::middleware(['auth', 'password.change'])->group(function () {
     });
 });
 
-Route::redirect('/', '/whiteboards');
+Route::redirect('/', '/tasks');

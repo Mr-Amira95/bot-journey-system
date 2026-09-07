@@ -8,6 +8,7 @@ use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\ConversationUser;
 use App\Models\User;
+use App\Notifications\NewMessageNotification;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -148,6 +149,19 @@ class ConversationController extends Controller
         $conversation->touch();
 
         broadcast(new MessageSent($message))->toOthers();
+
+        $recipients = $conversation->members()
+            ->where('user_id', '!=', $userId)
+            ->whereNull('left_at')
+            ->whereNull('muted_at')
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter();
+
+        foreach ($recipients as $recipient) {
+            $recipient->notify(new NewMessageNotification($conversation, $message, $message->sender));
+        }
 
         return response()->json([
             'success' => true,

@@ -6,6 +6,7 @@ use App\Models\OvertimeRequest;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 
 class OvertimeStatusNotification extends Notification
 {
@@ -17,7 +18,7 @@ class OvertimeStatusNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database', 'broadcast', 'mail'];
     }
 
     public function toArray(object $notifiable): array
@@ -40,5 +41,21 @@ class OvertimeStatusNotification extends Notification
     public function toBroadcast(object $notifiable): BroadcastMessage
     {
         return new BroadcastMessage($this->toArray($notifiable));
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $status = $this->overtimeRequest->status->value ?? $this->overtimeRequest->status;
+        $label  = ucfirst($status);
+
+        return (new MailMessage)
+            ->subject("Overtime request {$label}")
+            ->view('emails.overtime-status', [
+                'notifiable'      => $notifiable,
+                'overtimeRequest' => $this->overtimeRequest,
+                'status'          => $status,
+                'label'           => $label,
+                'listUrl'         => route('overtime-requests.index'),
+            ]);
     }
 }

@@ -154,24 +154,33 @@
                     <th class="px-4 py-3 text-right font-medium text-slate-600">Actions</th>
                 </tr>
             </thead>
-            <tbody class="divide-y divide-slate-100">
-                @if($groupBy)
-                    @forelse($groups as $groupLabel => $groupTasks)
-                        <tr class="bg-slate-50/80">
+            @if($groupBy)
+                @forelse($groups as $groupLabel => $groupTasks)
+                    <tbody x-data="{ open: true }" class="divide-y divide-slate-100">
+                        <tr class="bg-slate-50/80 cursor-pointer select-none" @click="open = !open">
                             <td colspan="7" class="px-4 py-2 text-xs font-semibold text-slate-600 uppercase tracking-wide">
-                                {{ $groupLabel }}
-                                <span class="ml-1 text-slate-400 normal-case font-normal">({{ $groupTasks->count() }})</span>
+                                <span class="inline-flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-slate-400 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                    {{ $groupLabel }}
+                                    <span class="text-slate-400 normal-case font-normal">({{ $groupTasks->count() }})</span>
+                                </span>
                             </td>
                         </tr>
                         @foreach($groupTasks as $task)
-                            @include('tasks._row', ['task' => $task])
+                            @include('tasks._row', ['task' => $task, 'grouped' => true])
                         @endforeach
-                    @empty
+                    </tbody>
+                @empty
+                    <tbody class="divide-y divide-slate-100">
                         <tr>
                             <td colspan="7" class="px-4 py-12 text-center text-slate-400">No tasks found.</td>
                         </tr>
-                    @endforelse
-                @else
+                    </tbody>
+                @endforelse
+            @else
+                <tbody class="divide-y divide-slate-100">
                     @forelse($tasks as $task)
                         @include('tasks._row', ['task' => $task])
                     @empty
@@ -184,8 +193,8 @@
                             </td>
                         </tr>
                     @endforelse
-                @endif
-            </tbody>
+                </tbody>
+            @endif
         </table>
         </div>
     </div>

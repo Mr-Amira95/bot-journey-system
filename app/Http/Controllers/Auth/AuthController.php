@@ -27,7 +27,7 @@ class AuthController extends Controller
 
             Auth::user()->update(['last_login_at' => now()]);
 
-            return redirect()->intended(route('whiteboards.index'));
+            return redirect()->intended(route('tasks.index'));
         }
 
         return back()
@@ -67,7 +67,7 @@ class AuthController extends Controller
             'must_change_password' => false,
         ]);
 
-        return redirect()->route('whiteboards.index')->with('success', 'Password changed successfully.');
+        return redirect()->route('tasks.index')->with('success', 'Password changed successfully.');
     }
 
     public function showForgotPassword()
@@ -114,7 +114,7 @@ class AuthController extends Controller
         );
 
         return $status === Password::PASSWORD_RESET
-            ? redirect()->route('whiteboards.index')->with('success', __($status))
+            ? redirect()->route('tasks.index')->with('success', __($status))
             : back()->withErrors(['email' => __($status)])->withInput();
     }
 }

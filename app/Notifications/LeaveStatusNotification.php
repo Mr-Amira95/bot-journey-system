@@ -6,6 +6,7 @@ use App\Models\LeaveRequest;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Messages\MailMessage;
 
 class LeaveStatusNotification extends Notification
 {
@@ -17,7 +18,7 @@ class LeaveStatusNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'broadcast'];
+        return ['database', 'broadcast', 'mail'];
     }
 
     public function toArray(object $notifiable): array
@@ -42,5 +43,21 @@ class LeaveStatusNotification extends Notification
     public function toBroadcast(object $notifiable): BroadcastMessage
     {
         return new BroadcastMessage($this->toArray($notifiable));
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        $status = $this->leaveRequest->status->value ?? $this->leaveRequest->status;
+        $label  = ucfirst($status);
+
+        return (new MailMessage)
+            ->subject("Leave request {$label}")
+            ->view('emails.leave-status', [
+                'notifiable'   => $notifiable,
+                'leaveRequest' => $this->leaveRequest,
+                'status'       => $status,
+                'label'        => $label,
+                'listUrl'      => route('leave-requests.index'),
+            ]);
     }
 }

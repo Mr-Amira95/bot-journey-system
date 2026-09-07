@@ -36,13 +36,16 @@
     submitted: false,
     formData: {
         leave_type_id: '{{ old('leave_type_id', '') }}',
+        duration_type: '{{ old('duration_type', 'full_day') }}',
         start_date:    '{{ old('start_date', '') }}',
         end_date:      '{{ old('end_date', '') }}',
+        start_time:    '{{ old('start_time', '') }}',
+        end_time:      '{{ old('end_time', '') }}',
         reason:        '{{ old('reason', '') }}'
     },
     openCreate() {
         this.mode = 'create'; this.recordId = null; this.submitted = false;
-        this.formData = { leave_type_id: '', start_date: '', end_date: '', reason: '' };
+        this.formData = { leave_type_id: '', duration_type: 'full_day', start_date: '', end_date: '', start_time: '', end_time: '', reason: '' };
         this.open = true;
     },
     openEdit(data) {
@@ -126,9 +129,21 @@
                             </div>
                         </td>
                         <td class="px-5 py-4 font-mono text-xs text-slate-600">
-                            {{ $req->start_date->format('M d, Y') }} → {{ $req->end_date->format('M d, Y') }}
+                            @if($req->duration_type->value === 'hourly')
+                                {{ $req->start_date->format('M d, Y') }}
+                                <span class="text-slate-400">·</span>
+                                {{ \Illuminate\Support\Carbon::parse($req->start_time)->format('g:i A') }} – {{ \Illuminate\Support\Carbon::parse($req->end_time)->format('g:i A') }}
+                            @else
+                                {{ $req->start_date->format('M d, Y') }} → {{ $req->end_date->format('M d, Y') }}
+                            @endif
                         </td>
-                        <td class="px-5 py-4 font-mono text-slate-700">{{ $req->total_days }}</td>
+                        <td class="px-5 py-4 font-mono text-slate-700">
+                            @if($req->duration_type->value === 'hourly')
+                                {{ $req->total_hours }} hrs
+                            @else
+                                {{ $req->total_days }}
+                            @endif
+                        </td>
                         <td class="px-5 py-4">
                             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-mono font-medium {{ $sc }}">
                                 {{ ucfirst($req->status->value) }}
@@ -161,8 +176,11 @@
                                     <button @click="openEdit({
                                                 id:            {{ $req->id }},
                                                 leave_type_id: '{{ $req->leave_type_id }}',
+                                                duration_type: '{{ $req->duration_type->value }}',
                                                 start_date:    '{{ $req->start_date->format('Y-m-d') }}',
                                                 end_date:      '{{ $req->end_date->format('Y-m-d') }}',
+                                                start_time:    '{{ $req->start_time ? \Illuminate\Support\Carbon::parse($req->start_time)->format('H:i') : '' }}',
+                                                end_time:      '{{ $req->end_time ? \Illuminate\Support\Carbon::parse($req->end_time)->format('H:i') : '' }}',
                                                 reason:        `{{ e($req->reason ?? '') }}`
                                             })"
                                             class="p-1.5 rounded-lg text-slate-400 hover:text-[#E26B3D] hover:bg-[#E26B3D]/10 transition-colors" title="Edit">
@@ -253,18 +271,51 @@
                                 @endforeach
                             </select>
                         </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Duration <span class="text-red-500">*</span></label>
+                            <input type="hidden" name="duration_type" :value="formData.duration_type">
+                            <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
+                                <button type="button" @click="formData.duration_type = 'full_day'"
+                                        class="px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-all"
+                                        :class="formData.duration_type === 'full_day' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'">
+                                    Full Day(s)
+                                </button>
+                                <button type="button" @click="formData.duration_type = 'hourly'"
+                                        class="px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-all"
+                                        :class="formData.duration_type === 'hourly' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'">
+                                    Hours
+                                </button>
+                            </div>
+                        </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="block text-xs font-medium text-slate-600 mb-1.5">Start Date <span class="text-red-500">*</span></label>
+                                <label class="block text-xs font-medium text-slate-600 mb-1.5" x-text="formData.duration_type === 'hourly' ? 'Date *' : 'Start Date *'"></label>
                                 <input type="date" name="start_date" :value="formData.start_date"
                                        class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors"
                                        :class="submitted && !formData.start_date ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
                             </div>
-                            <div>
+                            <div x-show="formData.duration_type === 'full_day'">
                                 <label class="block text-xs font-medium text-slate-600 mb-1.5">End Date <span class="text-red-500">*</span></label>
                                 <input type="date" name="end_date" :value="formData.end_date"
+                                       :disabled="formData.duration_type !== 'full_day'"
                                        class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors"
-                                       :class="submitted && !formData.end_date ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
+                                       :class="submitted && formData.duration_type === 'full_day' && !formData.end_date ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
+                            </div>
+                        </div>
+                        <div x-show="formData.duration_type === 'hourly'" class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1.5">Start Time <span class="text-red-500">*</span></label>
+                                <input type="time" name="start_time" :value="formData.start_time"
+                                       :disabled="formData.duration_type !== 'hourly'"
+                                       class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors"
+                                       :class="submitted && formData.duration_type === 'hourly' && !formData.start_time ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 mb-1.5">End Time <span class="text-red-500">*</span></label>
+                                <input type="time" name="end_time" :value="formData.end_time"
+                                       :disabled="formData.duration_type !== 'hourly'"
+                                       class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors"
+                                       :class="submitted && formData.duration_type === 'hourly' && !formData.end_time ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
                             </div>
                         </div>
                         <div>
