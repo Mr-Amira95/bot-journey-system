@@ -91,24 +91,6 @@ $expActive      = request()->routeIs('expense*');
       x-data="{
           sidebarOpen: false,
           sidebarCollapsed: localStorage.getItem('sidebarCollapsed') !== 'false',
-          groups: {
-              people:  {{ $peopleActive  ? 'true' : 'false' }},
-              work:    {{ $workActive    ? 'true' : 'false' }},
-              comms:   {{ $commsActive   ? 'true' : 'false' }},
-              finance: {{ $financeActive ? 'true' : 'false' }},
-              hr:      {{ $hrActive      ? 'true' : 'false' }},
-              admin:   {{ $adminActive   ? 'true' : 'false' }},
-          },
-          toggleGroup(key) {
-              const wasOpen = this.groups[key];
-              this.groups.people  = false;
-              this.groups.work    = false;
-              this.groups.comms   = false;
-              this.groups.finance = false;
-              this.groups.hr      = false;
-              this.groups.admin   = false;
-              if (!wasOpen) this.groups[key] = true;
-          }
       }"
       x-init="$watch('sidebarCollapsed', val => localStorage.setItem('sidebarCollapsed', val))">
 
@@ -183,16 +165,12 @@ $expActive      = request()->routeIs('expense*');
             {{-- ── People ─────────────────────────────── --}}
             @if($peopleItemsCount > 1)
             <div class="mt-2">
-                <button x-show="!sidebarCollapsed" @click="toggleGroup('people')"
-                        class="w-full flex items-center justify-between px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest transition-colors select-none
-                               {{ $peopleActive ? 'text-[#E26B3D]' : 'text-white/30 hover:text-white/50' }}">
+                <div x-show="!sidebarCollapsed"
+                     class="w-full flex items-center px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest select-none
+                            {{ $peopleActive ? 'text-[#E26B3D]' : 'text-white/30' }}">
                     <span>People</span>
-                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="groups.people ? 'rotate-90' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </button>
-                <div x-show="sidebarCollapsed || groups.people" class="space-y-0.5">
+                </div>
+                <div class="space-y-0.5">
                     @if(auth()->user()->hasPermission('view_employees'))
                     <a href="{{ route('employees.index') }}"
                        class="{{ $navLinkBase }} {{ $empActive ? $navActive : $navInactive }}"
@@ -253,16 +231,12 @@ $expActive      = request()->routeIs('expense*');
             {{-- ── Work ───────────────────────────────── --}}
             @if($workItemsCount > 1)
             <div class="mt-2">
-                <button x-show="!sidebarCollapsed" @click="toggleGroup('work')"
-                        class="w-full flex items-center justify-between px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest transition-colors select-none
-                               {{ $workActive ? 'text-[#E26B3D]' : 'text-white/30 hover:text-white/50' }}">
+                <div x-show="!sidebarCollapsed"
+                     class="w-full flex items-center px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest select-none
+                            {{ $workActive ? 'text-[#E26B3D]' : 'text-white/30' }}">
                     <span>Work</span>
-                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="groups.work ? 'rotate-90' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </button>
-                <div x-show="sidebarCollapsed || groups.work" class="space-y-0.5">
+                </div>
+                <div class="space-y-0.5">
                     @if(auth()->user()->hasPermission('view_projects'))
                     <a href="{{ route('projects.index') }}"
                        class="{{ $navLinkBase }} {{ $projActive ? $navActive : $navInactive }}"
@@ -323,16 +297,12 @@ $expActive      = request()->routeIs('expense*');
             {{-- ── Communication ───────────────────────── --}}
             @if($commsItemsCount > 1)
             <div class="mt-2">
-                <button x-show="!sidebarCollapsed" @click="toggleGroup('comms')"
-                        class="w-full flex items-center justify-between px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest transition-colors select-none
-                               {{ $commsActive ? 'text-[#E26B3D]' : 'text-white/30 hover:text-white/50' }}">
+                <div x-show="!sidebarCollapsed"
+                     class="w-full flex items-center px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest select-none
+                            {{ $commsActive ? 'text-[#E26B3D]' : 'text-white/30' }}">
                     <span>Communication</span>
-                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="groups.comms ? 'rotate-90' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </button>
-                <div x-show="sidebarCollapsed || groups.comms" class="space-y-0.5">
+                </div>
+                <div class="space-y-0.5">
                     @if(auth()->user()->hasPermission('view_conversations'))
                     <a href="{{ route('conversations.index') }}"
                        class="{{ $navLinkBase }} {{ $convActive ? $navActive : $navInactive }}"
@@ -393,16 +363,12 @@ $expActive      = request()->routeIs('expense*');
             {{-- ── Finance ─────────────────────────────── --}}
             @if($financeItemsCount > 1)
             <div class="mt-2">
-                <button x-show="!sidebarCollapsed" @click="toggleGroup('finance')"
-                        class="w-full flex items-center justify-between px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest transition-colors select-none
-                               {{ $financeActive ? 'text-[#E26B3D]' : 'text-white/30 hover:text-white/50' }}">
+                <div x-show="!sidebarCollapsed"
+                     class="w-full flex items-center px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest select-none
+                            {{ $financeActive ? 'text-[#E26B3D]' : 'text-white/30' }}">
                     <span>Finance</span>
-                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="groups.finance ? 'rotate-90' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </button>
-                <div x-show="sidebarCollapsed || groups.finance" class="space-y-0.5">
+                </div>
+                <div class="space-y-0.5">
                     @if(auth()->user()->hasPermission('view_expenses'))
                     <a href="{{ route('expenses.index') }}"
                        class="{{ $navLinkBase }} {{ $expActive ? $navActive : $navInactive }}"
@@ -569,16 +535,12 @@ $expActive      = request()->routeIs('expense*');
             {{-- ── HR ─────────────────────────────────── --}}
             @if($hrItemsCount > 1)
             <div class="mt-2">
-                <button x-show="!sidebarCollapsed" @click="toggleGroup('hr')"
-                        class="w-full flex items-center justify-between px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest transition-colors select-none
-                               {{ $hrActive ? 'text-[#E26B3D]' : 'text-white/30 hover:text-white/50' }}">
+                <div x-show="!sidebarCollapsed"
+                     class="w-full flex items-center px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest select-none
+                            {{ $hrActive ? 'text-[#E26B3D]' : 'text-white/30' }}">
                     <span>HR</span>
-                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="groups.hr ? 'rotate-90' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </button>
-                <div x-show="sidebarCollapsed || groups.hr" class="space-y-0.5">
+                </div>
+                <div class="space-y-0.5">
                     @if(auth()->user()->hasPermission('view_leave_requests'))
                     <a href="{{ route('leave-requests.index') }}"
                        class="{{ $navLinkBase }} {{ $leaveReqActive ? $navActive : $navInactive }}"
@@ -769,16 +731,12 @@ $expActive      = request()->routeIs('expense*');
             {{-- ── Administration ──────────────────────── --}}
             @if($adminItemsCount > 1)
             <div class="mt-2">
-                <button x-show="!sidebarCollapsed" @click="toggleGroup('admin')"
-                        class="w-full flex items-center justify-between px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest transition-colors select-none
-                               {{ $adminActive ? 'text-[#E26B3D]' : 'text-white/30 hover:text-white/50' }}">
+                <div x-show="!sidebarCollapsed"
+                     class="w-full flex items-center px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest select-none
+                            {{ $adminActive ? 'text-[#E26B3D]' : 'text-white/30' }}">
                     <span>Administration</span>
-                    <svg class="w-3.5 h-3.5 transition-transform duration-200" :class="groups.admin ? 'rotate-90' : ''"
-                         fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
-                    </svg>
-                </button>
-                <div x-show="sidebarCollapsed || groups.admin" class="space-y-0.5">
+                </div>
+                <div class="space-y-0.5">
                     @if(auth()->user()->hasPermission('view_departments'))
                     <a href="{{ route('departments.index') }}"
                        class="{{ $navLinkBase }} {{ $deptActive ? $navActive : $navInactive }}"
