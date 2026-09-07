@@ -21,10 +21,13 @@
         dueOpen: false,
         assigneesOpen: false,
         saving: false,
-        menuStyle: '',
-        openMenu(el) {
+        statusMenuStyle: '',
+        priorityMenuStyle: '',
+        dueMenuStyle: '',
+        assigneesMenuStyle: '',
+        menuStyle(el) {
             const rect = el.getBoundingClientRect();
-            this.menuStyle = `top:${rect.bottom + 4}px; left:${rect.left}px;`;
+            return `top:${rect.bottom + 4}px; left:${rect.left}px;`;
         },
         closeMenus() {
             this.statusOpen = false;
@@ -110,7 +113,7 @@
     <td class="px-4 py-3">
         @if($canEditTasks)
             <button type="button" x-ref="statusBtn"
-                    @click="if (!statusOpen) openMenu($refs.statusBtn); statusOpen = !statusOpen; priorityOpen = false; dueOpen = false; assigneesOpen = false"
+                    @click="if (!statusOpen) statusMenuStyle = menuStyle($refs.statusBtn); statusOpen = !statusOpen; priorityOpen = false; dueOpen = false; assigneesOpen = false"
                     :disabled="saving"
                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-slate-200 disabled:opacity-50"
                     :class="statusColors[status]">
@@ -120,7 +123,7 @@
                 </svg>
             </button>
             <template x-teleport="body">
-                <div x-show="statusOpen" x-transition @click.outside="statusOpen = false" :style="menuStyle"
+                <div x-show="statusOpen" x-transition @click.outside="statusOpen = false" :style="statusMenuStyle"
                      class="fixed z-[60] w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
                     <template x-for="opt in statusOptions" :key="opt.value">
                         <button type="button" @click="setStatus(opt.value)"
@@ -141,7 +144,7 @@
     <td class="px-4 py-3">
         @if($canEditTasks)
             <button type="button" x-ref="priorityBtn"
-                    @click="if (!priorityOpen) openMenu($refs.priorityBtn); priorityOpen = !priorityOpen; statusOpen = false; dueOpen = false; assigneesOpen = false"
+                    @click="if (!priorityOpen) priorityMenuStyle = menuStyle($refs.priorityBtn); priorityOpen = !priorityOpen; statusOpen = false; dueOpen = false; assigneesOpen = false"
                     :disabled="saving"
                     class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition hover:ring-2 hover:ring-offset-1 hover:ring-slate-200 disabled:opacity-50"
                     :class="priorityColors[priority]">
@@ -151,7 +154,7 @@
                 </svg>
             </button>
             <template x-teleport="body">
-                <div x-show="priorityOpen" x-transition @click.outside="priorityOpen = false" :style="menuStyle"
+                <div x-show="priorityOpen" x-transition @click.outside="priorityOpen = false" :style="priorityMenuStyle"
                      class="fixed z-[60] w-36 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
                     <template x-for="opt in priorityOptions" :key="opt.value">
                         <button type="button" @click="setPriority(opt.value)"
@@ -172,12 +175,12 @@
     <td class="px-4 py-3 text-slate-600 font-mono text-xs">
         @if($canEditTasks)
             <button type="button" x-ref="dueBtn"
-                    @click="openMenu($refs.dueBtn); dueOpen = true; statusOpen = false; priorityOpen = false; assigneesOpen = false; $nextTick(() => { $refs.dueDateInput.focus(); $refs.dueDateInput.showPicker && $refs.dueDateInput.showPicker(); })"
+                    @click="dueMenuStyle = menuStyle($refs.dueBtn); dueOpen = true; statusOpen = false; priorityOpen = false; assigneesOpen = false; $nextTick(() => { $refs.dueDateInput.focus(); $refs.dueDateInput.showPicker && $refs.dueDateInput.showPicker(); })"
                     class="hover:underline" :class="overdue ? 'text-red-600 font-semibold' : ''">
                 <span x-text="dueDateDisplay"></span>
             </button>
             <template x-teleport="body">
-                <div x-show="dueOpen" x-transition @click.outside="dueOpen = false" :style="menuStyle"
+                <div x-show="dueOpen" x-transition @click.outside="dueOpen = false" :style="dueMenuStyle"
                      class="fixed z-[60] bg-white border border-slate-200 rounded-lg shadow-lg p-3 flex items-center gap-2 font-sans">
                     <input type="date" x-ref="dueDateInput" x-model="dueDate"
                            class="px-2 py-1 border border-slate-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40">
@@ -195,7 +198,7 @@
     <td class="px-4 py-3 text-slate-600">
         @if($canEditTasks)
             <button type="button" x-ref="assigneesBtn"
-                    @click="if (!assigneesOpen) openMenu($refs.assigneesBtn); assigneesOpen = !assigneesOpen; statusOpen = false; priorityOpen = false; dueOpen = false"
+                    @click="if (!assigneesOpen) assigneesMenuStyle = menuStyle($refs.assigneesBtn); assigneesOpen = !assigneesOpen; statusOpen = false; priorityOpen = false; dueOpen = false"
                     class="inline-flex items-center gap-1 text-xs hover:text-[#E26B3D] transition-colors max-w-[10rem]">
                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
@@ -204,7 +207,7 @@
                 <span class="text-slate-400" x-show="!assignees.length">Unassigned</span>
             </button>
             <template x-teleport="body">
-                <div x-show="assigneesOpen" x-transition @click.outside="assigneesOpen = false" :style="menuStyle"
+                <div x-show="assigneesOpen" x-transition @click.outside="assigneesOpen = false" :style="assigneesMenuStyle"
                      class="fixed z-[60] w-56 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg py-1">
                     <template x-for="u in $store.taskUsers" :key="u.id">
                         <label class="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-slate-50 cursor-pointer">

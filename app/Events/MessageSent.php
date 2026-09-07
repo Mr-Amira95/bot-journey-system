@@ -35,6 +35,15 @@ class MessageSent implements ShouldBroadcastNow
             'body'            => $this->message->body,
             'reply_to'        => $this->message->reply_to,
             'reaction'        => $this->message->reaction,
+            'attachments'     => $this->message->attachments->map(fn ($a) => [
+                'id'        => $a->id,
+                'file_name' => $a->file_name,
+                'file_type' => $a->file_type,
+                'mime_type' => $a->mime_type,
+                'size'      => $a->size,
+                'duration'  => $a->duration,
+                'url'       => \Illuminate\Support\Facades\Storage::disk('public')->url($a->file_path),
+            ])->values(),
             'created_at'      => $this->message->created_at->toISOString(),
             'sender'          => [
                 'id'   => $this->message->sender->id,

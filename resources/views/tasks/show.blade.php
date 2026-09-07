@@ -217,13 +217,17 @@
         </div>
 
         @if($canEditTasks)
-        <form action="{{ route('tasks.comments.store', $task) }}" method="POST" class="mb-6">
+        <form action="{{ route('tasks.comments.store', $task) }}" method="POST" enctype="multipart/form-data" class="mb-6">
             @csrf
             <textarea name="comment" rows="3" required placeholder="Write a comment..."
                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]"></textarea>
             @error('comment')
                 <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
             @enderror
+            <div class="mt-2">
+                <input type="file" name="attachments[]" multiple
+                       class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:bg-[#E26B3D]/10 file:text-[#E26B3D] hover:file:bg-[#E26B3D]/20 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]">
+            </div>
             <div class="flex justify-end mt-2">
                 <button type="submit"
                         class="rounded-lg bg-[#E26B3D] px-4 py-2 text-sm font-medium text-white hover:bg-[#c85a2f] transition-colors">
@@ -255,6 +259,7 @@
                             </div>
                         </div>
                         <p class="text-sm text-slate-700 whitespace-pre-line mt-1">{{ $comment->comment }}</p>
+                        @include('tasks._attachment_list', ['attachments' => $comment->attachments])
                     </div>
 
                     @if($comment->replies->isNotEmpty())
@@ -278,6 +283,7 @@
                                     </div>
                                 </div>
                                 <p class="text-sm text-slate-700 whitespace-pre-line mt-1">{{ $reply->comment }}</p>
+                                @include('tasks._attachment_list', ['attachments' => $reply->attachments])
                             </div>
                         </div>
                         @endforeach
@@ -287,11 +293,15 @@
                     @if($canEditTasks)
                     <details class="mt-2 ml-1">
                         <summary class="text-xs text-slate-400 hover:text-[#E26B3D] cursor-pointer select-none">Reply</summary>
-                        <form action="{{ route('tasks.comments.store', $task) }}" method="POST" class="mt-2">
+                        <form action="{{ route('tasks.comments.store', $task) }}" method="POST" enctype="multipart/form-data" class="mt-2">
                             @csrf
                             <input type="hidden" name="parent_id" value="{{ $comment->id }}">
                             <textarea name="comment" rows="2" required placeholder="Write a reply..."
                                       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]"></textarea>
+                            <div class="mt-2">
+                                <input type="file" name="attachments[]" multiple
+                                       class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:bg-[#E26B3D]/10 file:text-[#E26B3D] hover:file:bg-[#E26B3D]/20 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]">
+                            </div>
                             <div class="flex justify-end mt-2">
                                 <button type="submit"
                                         class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 transition-colors">

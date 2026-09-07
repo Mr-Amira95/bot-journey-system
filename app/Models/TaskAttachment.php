@@ -11,6 +11,7 @@ class TaskAttachment extends Model
 
     protected $fillable = [
         'task_id',
+        'comment_id',
         'user_id',
         'file_name',
         'file_path',
@@ -28,6 +29,11 @@ class TaskAttachment extends Model
     public function task(): BelongsTo
     {
         return $this->belongsTo(Task::class);
+    }
+
+    public function comment(): BelongsTo
+    {
+        return $this->belongsTo(TaskComment::class, 'comment_id');
     }
 
     public function user(): BelongsTo

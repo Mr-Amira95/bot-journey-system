@@ -7,13 +7,19 @@ use App\Enums\MessageType;
 use App\Events\MessageSent;
 use App\Models\Conversation;
 use App\Models\ConversationUser;
+use App\Models\Message;
+use App\Models\MessageAttachment;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class ConversationController extends Controller
 {
+    private const ATTACHMENT_MIMES = 'jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip,mp3,wav,m4a,ogg,aac';
+
     public function index(Request $request)
     {
         abort_unless(auth()->user()->hasPermission('view_conversations'), 403);
@@ -23,7 +29,8 @@ class ConversationController extends Controller
 
         $query = Conversation::with(['latestMessage.sender', 'users'])
             ->withCount(['messages as unread_count' => function ($q) use ($userId) {
-                $q->where('is_read', false)->where('user_id', '!=', $userId);
+                $q->where('user_id', '!=', $userId)
+                  ->whereRaw('messages.id > (select coalesce(last_read_message_id, 0) from conversation_users where conversation_users.conversation_id = messages.conversation_id and conversation_users.user_id = ?)', [$userId]);
             }])
             ->latest('updated_at');
 
@@ -118,7 +125,26 @@ class ConversationController extends Controller
 
         $myMembership = $conversation->members()->where('user_id', $userId)->first();
 
+        if ($isMember && $myMembership && $messages->isNotEmpty()) {
+            $myMembership->update(['last_read_message_id' => $messages->last()->id]);
+        }
+
         return view('conversations.show', compact('conversation', 'messages', 'myMembership', 'oversightMode'));
+    }
+
+    public function markRead(Conversation $conversation)
+    {
+        $userId     = auth()->id();
+        $membership = $conversation->members()->where('user_id', $userId)->whereNull('left_at')->first();
+
+        abort_unless($membership, 403);
+
+        $lastMessageId = $conversation->messages()->max('id');
+        if ($lastMessageId) {
+            $membership->update(['last_read_message_id' => $lastMessageId]);
+        }
+
+        return response()->json(['success' => true]);
     }
 
     public function sendMessage(Request $request, Conversation $conversation)
@@ -133,18 +159,33 @@ class ConversationController extends Controller
         abort_unless($isMember, 403);
 
         $data = $request->validate([
-            'body'     => ['required', 'string', 'max:5000'],
-            'reply_to' => ['nullable', 'exists:messages,id'],
+            'body'           => ['nullable', 'string', 'max:5000', 'required_without_all:attachments,voice'],
+            'reply_to'       => ['nullable', 'exists:messages,id'],
+            'attachments'    => ['nullable', 'array'],
+            'attachments.*'  => ['file', 'max:20480', 'mimes:' . self::ATTACHMENT_MIMES],
+            'voice'          => ['nullable', 'file', 'max:20480', 'mimes:' . self::ATTACHMENT_MIMES],
+            'voice_duration' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        $attachmentFiles = $request->file('attachments', []);
+        $voiceFile       = $request->file('voice');
 
         $message = $conversation->messages()->create([
             'user_id'  => $userId,
-            'type'     => MessageType::Text,
-            'body'     => $data['body'],
+            'type'     => $this->resolveMessageType($data['body'] ?? null, $attachmentFiles, $voiceFile),
+            'body'     => $data['body'] ?? null,
             'reply_to' => $data['reply_to'] ?? null,
         ]);
 
-        $message->load('sender', 'replyTo.sender');
+        foreach ($attachmentFiles as $file) {
+            $this->createMessageAttachment($message, $file);
+        }
+
+        if ($voiceFile) {
+            $this->createMessageAttachment($message, $voiceFile, 'voice', $data['voice_duration'] ?? null);
+        }
+
+        $message->load('sender', 'replyTo.sender', 'attachments');
 
         $conversation->touch();
 
@@ -173,6 +214,7 @@ class ConversationController extends Controller
                 'reply_to'   => $message->reply_to,
                 'reply_body' => $message->replyTo?->body,
                 'reaction'   => $message->reaction,
+                'attachments' => $message->attachments->map(fn ($a) => $this->attachmentPayload($a))->values(),
                 'created_at' => $message->created_at->format('H:i'),
                 'sender'     => [
                     'id'   => $message->sender->id,
@@ -182,7 +224,7 @@ class ConversationController extends Controller
         ]);
     }
 
-    public function react(Request $request, Conversation $conversation, \App\Models\Message $message)
+    public function react(Request $request, Conversation $conversation, Message $message)
     {
         $isMember = $conversation->members()
             ->where('user_id', auth()->id())
@@ -214,5 +256,74 @@ class ConversationController extends Controller
             ->whereHas('members', fn ($q) => $q->where('user_id', $userId1))
             ->whereHas('members', fn ($q) => $q->where('user_id', $userId2))
             ->first();
+    }
+
+    /**
+     * @param  UploadedFile[]  $attachmentFiles
+     */
+    private function resolveMessageType(?string $body, array $attachmentFiles, ?UploadedFile $voiceFile): MessageType
+    {
+        if ($voiceFile) {
+            return MessageType::Voice;
+        }
+
+        if (! empty($body)) {
+            return MessageType::Text;
+        }
+
+        if (count($attachmentFiles) === 1) {
+            return match ($this->attachmentType($attachmentFiles[0]->getClientOriginalExtension())) {
+                'image' => MessageType::Image,
+                'video' => MessageType::Video,
+                'audio' => MessageType::Audio,
+                default => MessageType::File,
+            };
+        }
+
+        return MessageType::File;
+    }
+
+    private function createMessageAttachment(Message $message, UploadedFile $file, ?string $forceType = null, ?int $duration = null): MessageAttachment
+    {
+        $folder = 'conversation-attachments/' . $message->conversation_id . '/' . $message->id;
+        $path   = $file->store($folder, 'public');
+
+        return $message->attachments()->create([
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_type' => $forceType ?? $this->attachmentType($file->getClientOriginalExtension()),
+            'mime_type' => $file->getMimeType(),
+            'size'      => $file->getSize(),
+            'duration'  => $duration,
+        ]);
+    }
+
+    private function attachmentType(string $extension): string
+    {
+        $extension = strtolower($extension);
+
+        return match (true) {
+            in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true) => 'image',
+            in_array($extension, ['mp4', 'mov', 'avi', 'webm'], true)        => 'video',
+            in_array($extension, ['mp3', 'wav', 'm4a', 'ogg', 'aac'], true)  => 'audio',
+            $extension === 'pdf'                                             => 'pdf',
+            in_array($extension, ['doc', 'docx'], true)                      => 'word',
+            in_array($extension, ['xls', 'xlsx'], true)                      => 'excel',
+            in_array($extension, ['ppt', 'pptx'], true)                      => 'powerpoint',
+            default                                                          => 'file',
+        };
+    }
+
+    private function attachmentPayload(MessageAttachment $attachment): array
+    {
+        return [
+            'id'        => $attachment->id,
+            'file_name' => $attachment->file_name,
+            'file_type' => $attachment->file_type,
+            'mime_type' => $attachment->mime_type,
+            'size'      => $attachment->size,
+            'duration'  => $attachment->duration,
+            'url'       => Storage::disk('public')->url($attachment->file_path),
+        ];
     }
 }

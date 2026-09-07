@@ -19,6 +19,8 @@ use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
+    private const ATTACHMENT_MIMES = 'jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip';
+
     public function index(Request $request)
     {
         abort_unless(auth()->user()->hasPermission('view_tasks'), 403);
@@ -112,7 +114,9 @@ class TaskController extends Controller
 
         $task->load([
             'project', 'createdBy', 'updatedBy', 'assignees.user',
-            'comments' => fn ($q) => $q->whereNull('parent_id')->with(['user', 'replies.user'])->oldest(),
+            'comments' => fn ($q) => $q->whereNull('parent_id')
+                ->with(['user', 'attachments.user', 'replies.user', 'replies.attachments.user'])
+                ->oldest(),
             'attachments.user',
         ]);
 
@@ -136,13 +140,16 @@ class TaskController extends Controller
             'estimated_hours' => ['nullable', 'numeric', 'min:0'],
             'assignees'       => ['nullable', 'array'],
             'assignees.*'     => ['exists:users,id'],
+            'attachments'     => ['nullable', 'array'],
+            'attachments.*'   => ['file', 'max:20480', 'mimes:' . self::ATTACHMENT_MIMES],
         ]);
 
         $data['created_by'] = auth()->id();
         $data['updated_by'] = auth()->id();
 
-        $assignees = $data['assignees'] ?? [];
-        unset($data['assignees']);
+        $assignees   = $data['assignees'] ?? [];
+        $attachments = $data['attachments'] ?? [];
+        unset($data['assignees'], $data['attachments']);
 
         $task = Task::create($data);
 
@@ -157,6 +164,10 @@ class TaskController extends Controller
             if ($userId != $actor->id) {
                 User::find($userId)?->notify(new TaskAssignedNotification($task->load('project'), $actor));
             }
+        }
+
+        foreach ($attachments as $file) {
+            $this->createAttachment($task, $file);
         }
 
         return back()->with('success', 'Task created.');
@@ -176,6 +187,8 @@ class TaskController extends Controller
             'estimated_hours' => ['nullable', 'numeric', 'min:0'],
             'assignees'       => ['nullable', 'array'],
             'assignees.*'     => ['exists:users,id'],
+            'attachments'     => ['nullable', 'array'],
+            'attachments.*'   => ['file', 'max:20480', 'mimes:' . self::ATTACHMENT_MIMES],
         ]);
 
         $data['updated_by'] = auth()->id();
@@ -186,8 +199,9 @@ class TaskController extends Controller
             $data['completed_at'] = null;
         }
 
-        $assignees = $data['assignees'] ?? [];
-        unset($data['assignees']);
+        $assignees   = $data['assignees'] ?? [];
+        $attachments = $data['attachments'] ?? [];
+        unset($data['assignees'], $data['attachments']);
 
         $task->update($data);
 
@@ -205,6 +219,10 @@ class TaskController extends Controller
             if ($userId != $actor->id && ! in_array($userId, $previousAssignees)) {
                 User::find($userId)?->notify(new TaskAssignedNotification($task->load('project'), $actor));
             }
+        }
+
+        foreach ($attachments as $file) {
+            $this->createAttachment($task, $file);
         }
 
         return back()->with('success', 'Task updated.');
@@ -286,8 +304,10 @@ class TaskController extends Controller
         abort_unless(auth()->user()->hasPermission('edit_tasks'), 403);
 
         $data = $request->validate([
-            'comment'   => ['required', 'string', 'max:5000'],
-            'parent_id' => ['nullable', 'exists:task_comments,id'],
+            'comment'       => ['required', 'string', 'max:5000'],
+            'parent_id'     => ['nullable', 'exists:task_comments,id'],
+            'attachments'   => ['nullable', 'array'],
+            'attachments.*' => ['file', 'max:20480', 'mimes:' . self::ATTACHMENT_MIMES],
         ]);
 
         if (! empty($data['parent_id'])) {
@@ -299,6 +319,10 @@ class TaskController extends Controller
             'comment'   => $data['comment'],
             'parent_id' => $data['parent_id'] ?? null,
         ]);
+
+        foreach ($data['attachments'] ?? [] as $file) {
+            $this->createAttachment($task, $file, $comment);
+        }
 
         $task->logs()->create([
             'user_id'     => auth()->id(),
@@ -331,30 +355,10 @@ class TaskController extends Controller
         abort_unless(auth()->user()->hasPermission('edit_tasks'), 403);
 
         $request->validate([
-            'file' => [
-                'required',
-                'file',
-                'max:20480',
-                'mimes:jpg,jpeg,png,gif,webp,mp4,mov,avi,webm,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip',
-            ],
+            'file' => ['required', 'file', 'max:20480', 'mimes:' . self::ATTACHMENT_MIMES],
         ]);
 
-        $file = $request->file('file');
-        $path = $file->store('task-attachments/' . $task->id, 'public');
-
-        $task->attachments()->create([
-            'user_id'   => auth()->id(),
-            'file_name' => $file->getClientOriginalName(),
-            'file_path' => $path,
-            'file_type' => $this->attachmentType($file->getClientOriginalExtension()),
-            'file_size' => $file->getSize(),
-        ]);
-
-        $task->logs()->create([
-            'user_id'     => auth()->id(),
-            'action'      => TaskLogAction::AttachmentAdded,
-            'description' => 'Added attachment "' . $file->getClientOriginalName() . '".',
-        ]);
+        $this->createAttachment($task, $request->file('file'));
 
         return back()->with('success', 'Attachment uploaded.');
     }
@@ -368,6 +372,32 @@ class TaskController extends Controller
         $attachment->delete();
 
         return back()->with('success', 'Attachment deleted.');
+    }
+
+    private function createAttachment(Task $task, $file, ?TaskComment $comment = null): TaskAttachment
+    {
+        $folder = 'task-attachments/' . $task->id . ($comment ? '/comments/' . $comment->id : '');
+        $path   = $file->store($folder, 'public');
+
+        $attachment = TaskAttachment::create([
+            'task_id'    => $task->id,
+            'comment_id' => $comment?->id,
+            'user_id'    => auth()->id(),
+            'file_name'  => $file->getClientOriginalName(),
+            'file_path'  => $path,
+            'file_type'  => $this->attachmentType($file->getClientOriginalExtension()),
+            'file_size'  => $file->getSize(),
+        ]);
+
+        if (! $comment) {
+            $task->logs()->create([
+                'user_id'     => auth()->id(),
+                'action'      => TaskLogAction::AttachmentAdded,
+                'description' => 'Added attachment "' . $file->getClientOriginalName() . '".',
+            ]);
+        }
+
+        return $attachment;
     }
 
     private function attachmentType(string $extension): string

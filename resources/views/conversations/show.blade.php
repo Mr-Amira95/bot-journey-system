@@ -96,6 +96,15 @@
         'reply_to'   => $m->reply_to,
         'reply_body' => $m->replyTo?->body,
         'reaction'   => $m->reaction,
+        'attachments' => $m->attachments->map(fn ($a) => [
+            'id'        => $a->id,
+            'file_name' => $a->file_name,
+            'file_type' => $a->file_type,
+            'mime_type' => $a->mime_type,
+            'size'      => $a->size,
+            'duration'  => $a->duration,
+            'url'       => \Illuminate\Support\Facades\Storage::disk('public')->url($a->file_path),
+        ])->values(),
         'created_at' => $m->created_at->format('H:i'),
         'sender'     => ['id' => $m->sender?->id, 'name' => $m->sender?->name ?? 'Unknown'],
     ]);
@@ -146,13 +155,54 @@
                         </div>
                     </template>
 
+                    {{-- Attachments --}}
+                    <template x-if="msg.attachments && msg.attachments.length">
+                        <div class="flex flex-col gap-1.5 mb-1" :class="msg.user_id === authId ? 'items-end' : 'items-start'">
+                            <template x-for="att in msg.attachments" :key="att.id">
+                                <div>
+                                    {{-- Image --}}
+                                    <template x-if="att.file_type === 'image'">
+                                        <a :href="att.url" target="_blank">
+                                            <img :src="att.url" :alt="att.file_name"
+                                                 class="max-w-[220px] max-h-[220px] rounded-xl border border-slate-200 object-cover">
+                                        </a>
+                                    </template>
+                                    {{-- Video --}}
+                                    <template x-if="att.file_type === 'video'">
+                                        <video :src="att.url" controls class="max-w-[260px] max-h-[260px] rounded-xl border border-slate-200"></video>
+                                    </template>
+                                    {{-- Voice / audio --}}
+                                    <template x-if="att.file_type === 'voice' || att.file_type === 'audio'">
+                                        <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-3 py-2 shadow-sm">
+                                            <span class="text-base leading-none">🎤</span>
+                                            <audio :src="att.url" controls class="h-8" style="max-width:220px"></audio>
+                                        </div>
+                                    </template>
+                                    {{-- Generic file --}}
+                                    <template x-if="!['image','video','voice','audio'].includes(att.file_type)">
+                                        <a :href="att.url" target="_blank" download
+                                           class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm hover:bg-stone-50 transition-colors max-w-[240px]">
+                                            <span class="text-lg leading-none shrink-0" x-text="{pdf:'📄',word:'📝',excel:'📊',powerpoint:'📽️'}[att.file_type] || '📎'"></span>
+                                            <span class="min-w-0">
+                                                <span class="block text-xs font-medium text-slate-700 truncate" x-text="att.file_name"></span>
+                                                <span class="block text-[11px] text-slate-400" x-text="((att.size || 0) / 1024).toFixed(1) + ' KB'"></span>
+                                            </span>
+                                        </a>
+                                    </template>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+
                     {{-- Bubble --}}
-                    <div class="px-3 py-2 rounded-2xl text-sm leading-relaxed break-words"
-                         :class="msg.user_id === authId
-                             ? 'bg-[#E26B3D] text-white rounded-br-sm'
-                             : 'bg-white text-slate-800 shadow-sm border border-slate-100 rounded-bl-sm'">
-                        <span x-text="msg.body"></span>
-                    </div>
+                    <template x-if="msg.body">
+                        <div class="px-3 py-2 rounded-2xl text-sm leading-relaxed break-words"
+                             :class="msg.user_id === authId
+                                 ? 'bg-[#E26B3D] text-white rounded-br-sm'
+                                 : 'bg-white text-slate-800 shadow-sm border border-slate-100 rounded-bl-sm'">
+                            <span x-text="msg.body"></span>
+                        </div>
+                    </template>
 
                     {{-- Reaction + time + actions --}}
                     <div class="flex items-center gap-2 mt-0.5 px-1">
@@ -210,15 +260,68 @@
             </button>
         </div>
 
-        <div class="flex items-end gap-3">
+        {{-- Pending attachment previews --}}
+        <div x-show="pendingFiles.length > 0" x-cloak class="flex flex-wrap gap-2 mb-2">
+            <template x-for="(file, idx) in pendingFiles" :key="idx">
+                <div class="flex items-center gap-1.5 bg-slate-100 border border-slate-200 rounded-lg pl-2 pr-1 py-1 text-xs">
+                    <span x-text="file.name" class="max-w-[140px] truncate text-slate-600"></span>
+                    <button type="button" @click="pendingFiles.splice(idx, 1)" class="text-slate-400 hover:text-red-500 p-0.5">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            </template>
+        </div>
+
+        {{-- Voice recording preview --}}
+        <div x-show="recordedBlob" x-cloak class="flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-lg px-3 py-2 mb-2 text-sm">
+            <span class="text-base leading-none">🎤</span>
+            <span class="text-slate-600 flex-1" x-text="'Voice message · ' + formatDuration(recordedSeconds)"></span>
+            <button type="button" @click="recordedBlob = null; recordedSeconds = 0" class="text-slate-400 hover:text-red-500">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        {{-- Recording indicator --}}
+        <div x-show="isRecording" x-cloak class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 text-sm text-red-600">
+            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+            <span x-text="'Recording… ' + formatDuration(recordingSeconds)"></span>
+            <button type="button" @click="cancelRecording()" class="ml-auto text-red-400 hover:text-red-700 text-xs font-medium">Cancel</button>
+        </div>
+
+        <div class="flex items-end gap-2">
+            <input type="file" x-ref="fileInput" multiple class="hidden"
+                   accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
+                   @change="pendingFiles.push(...Array.from($event.target.files)); $event.target.value = ''">
+
+            <button type="button" @click="$refs.fileInput.click()" :disabled="isRecording"
+                    class="w-9 h-9 rounded-full text-slate-400 hover:text-slate-600 hover:bg-stone-100 flex items-center justify-center shrink-0 transition-colors disabled:opacity-40">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/>
+                </svg>
+            </button>
+
             <textarea x-ref="input"
                       rows="1"
                       placeholder="Type a message…"
+                      x-show="!isRecording"
                       class="flex-1 resize-none px-4 py-2.5 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/30 focus:border-[#E26B3D] bg-stone-50 max-h-32 overflow-y-auto"
                       @keydown.enter.prevent="!$event.shiftKey && send()"
                       @input="$el.style.height='auto'; $el.style.height=Math.min($el.scrollHeight, 128)+'px'"></textarea>
 
-            <button @click="send()" :disabled="sending"
+            <button type="button" @click="isRecording ? stopRecording() : startRecording()"
+                    :disabled="sending"
+                    class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
+                    :class="isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-stone-100'">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18.5a3.5 3.5 0 003.5-3.5V6.5a3.5 3.5 0 10-7 0V15a3.5 3.5 0 003.5 3.5zM19 10v1a7 7 0 01-14 0v-1m7 10v3m-4 0h8"/>
+                </svg>
+            </button>
+
+            <button @click="send()" :disabled="sending || isRecording"
                     class="w-10 h-10 rounded-full bg-[#E26B3D] hover:bg-[#c95a2f] disabled:opacity-50 text-white flex items-center justify-center shrink-0 transition-colors">
                 <template x-if="!sending">
                     <svg class="w-4 h-4 translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,6 +341,31 @@
     @endif
 </div>
 
+{{-- Notification sound (no external asset — synthesized chime) --}}
+<script>
+function playChatChime() {
+    try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const now = ctx.currentTime;
+        [880, 1108].forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(0.0001, now + i * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.15, now + i * 0.12 + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.18);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(now + i * 0.12);
+            osc.stop(now + i * 0.12 + 0.2);
+        });
+        setTimeout(() => ctx.close(), 500);
+    } catch (e) { /* audio not available */ }
+}
+</script>
+
 <script>
 document.addEventListener('alpine:init', function () {
     Alpine.data('chatPanel', function () {
@@ -250,6 +378,16 @@ document.addEventListener('alpine:init', function () {
             isDirect: {{ $isDirect ? 'true' : 'false' }},
             convType: '{{ $conversation->type->value }}',
 
+            pendingFiles: [],
+            isRecording: false,
+            recordingSeconds: 0,
+            recordedBlob: null,
+            recordedSeconds: 0,
+            mediaRecorder: null,
+            recordedChunks: [],
+            recordingTimer: null,
+            mediaStream: null,
+
             setReply(msg) {
                 this.replyTo = msg.id;
                 this.replyBody = msg.body;
@@ -257,23 +395,86 @@ document.addEventListener('alpine:init', function () {
             },
             clearReply() { this.replyTo = null; this.replyBody = ''; },
 
+            formatDuration(seconds) {
+                const s = Math.max(0, Math.round(seconds));
+                return String(Math.floor(s / 60)).padStart(1, '0') + ':' + String(s % 60).padStart(2, '0');
+            },
+
+            async startRecording() {
+                if (this.isRecording) return;
+                try {
+                    this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } catch (e) {
+                    alert('Microphone access is required to record a voice message.');
+                    return;
+                }
+                this.recordedChunks = [];
+                this.mediaRecorder = new MediaRecorder(this.mediaStream);
+                this.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.recordedChunks.push(e.data); };
+                this.mediaRecorder.onstop = () => {
+                    this.recordedBlob = new Blob(this.recordedChunks, { type: this.mediaRecorder.mimeType || 'audio/webm' });
+                    this.recordedSeconds = this.recordingSeconds;
+                    this.mediaStream.getTracks().forEach(t => t.stop());
+                    this.mediaStream = null;
+                };
+                this.mediaRecorder.start();
+                this.isRecording = true;
+                this.recordingSeconds = 0;
+                this.recordingTimer = setInterval(() => { this.recordingSeconds++; }, 1000);
+            },
+
+            stopRecording() {
+                if (!this.isRecording) return;
+                clearInterval(this.recordingTimer);
+                this.isRecording = false;
+                this.mediaRecorder?.stop();
+            },
+
+            cancelRecording() {
+                if (!this.isRecording) return;
+                clearInterval(this.recordingTimer);
+                this.isRecording = false;
+                if (this.mediaRecorder) {
+                    this.mediaRecorder.onstop = () => {
+                        this.mediaStream?.getTracks().forEach(t => t.stop());
+                        this.mediaStream = null;
+                    };
+                    this.mediaRecorder.stop();
+                }
+                this.recordedBlob = null;
+                this.recordedChunks = [];
+            },
+
             async send() {
                 const body = this.$refs.input.value.trim();
-                if (!body || this.sending) return;
+                if (this.sending || (!body && this.pendingFiles.length === 0 && !this.recordedBlob)) return;
                 this.sending = true;
                 try {
+                    const formData = new FormData();
+                    if (body) formData.append('body', body);
+                    if (this.replyTo) formData.append('reply_to', this.replyTo);
+                    this.pendingFiles.forEach(file => formData.append('attachments[]', file));
+                    if (this.recordedBlob) {
+                        formData.append('voice', this.recordedBlob, 'voice-message.webm');
+                        formData.append('voice_duration', this.recordedSeconds);
+                    }
+
                     const res = await fetch('{{ route('conversations.messages.store', $conversation) }}', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content,
+                            'Accept': 'application/json',
                         },
-                        body: JSON.stringify({ body, reply_to: this.replyTo }),
+                        body: formData,
                     });
                     const data = await res.json();
                     if (data.success) {
                         this.messages.push(data.message);
                         this.$refs.input.value = '';
+                        this.$refs.input.style.height = 'auto';
+                        this.pendingFiles = [];
+                        this.recordedBlob = null;
+                        this.recordedSeconds = 0;
                         this.clearReply();
                         this.$nextTick(() => this.scrollBottom());
                     }
@@ -313,10 +514,19 @@ document.addEventListener('alpine:init', function () {
                         reply_to:   data.reply_to,
                         reply_body: null,
                         reaction:   data.reaction,
+                        attachments: data.attachments || [],
                         created_at: new Date(data.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
                         sender:     data.sender,
                     });
                     this.$nextTick(() => this.scrollBottom());
+
+                    if (data.user_id !== this.authId) {
+                        playChatChime();
+                        fetch('{{ route('conversations.read', $conversation) }}', {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
+                        }).catch(() => {});
+                    }
                 }
             },
         };

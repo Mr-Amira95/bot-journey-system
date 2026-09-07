@@ -30,7 +30,7 @@ class NewMessageNotification extends Notification
         return [
             'type'            => 'new_message',
             'title'           => "New message from {$this->sender->name}",
-            'body'            => \Illuminate\Support\Str::limit($this->message->body, 200),
+            'body'            => \Illuminate\Support\Str::limit($this->message->body ?: $this->attachmentSummary(), 200),
             'url'             => route('conversations.show', $this->conversation),
             'conversation_id' => $this->conversation->id,
             'message_id'      => $this->message->id,
@@ -41,6 +41,16 @@ class NewMessageNotification extends Notification
     public function toBroadcast(object $notifiable): BroadcastMessage
     {
         return new BroadcastMessage($this->toArray($notifiable));
+    }
+
+    private function attachmentSummary(): string
+    {
+        return match ($this->message->type->value) {
+            'voice' => '🎤 Voice message',
+            'image' => '📷 Photo',
+            'video' => '🎬 Video',
+            default => '📎 Attachment',
+        };
     }
 
     public function toMail(object $notifiable): MailMessage

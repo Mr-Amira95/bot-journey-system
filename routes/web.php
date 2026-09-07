@@ -113,6 +113,7 @@ Route::middleware(['auth', 'password.change'])->group(function () {
         Route::get('/{conversation}', [ConversationController::class, 'show'])->name('show');
         Route::post('/{conversation}/messages', [ConversationController::class, 'sendMessage'])->name('messages.store');
         Route::patch('/{conversation}/messages/{message}/react', [ConversationController::class, 'react'])->name('messages.react');
+        Route::post('/{conversation}/read', [ConversationController::class, 'markRead'])->name('read');
         Route::delete('/{conversation}', [ConversationController::class, 'destroy'])->name('destroy');
     });
 

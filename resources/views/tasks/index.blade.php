@@ -238,7 +238,7 @@
 
         {{-- Form --}}
         <form :action="_mode === 'create' ? '{{ route('tasks.store') }}' : '{{ url('tasks') }}/' + record_id"
-              method="POST"
+              method="POST" enctype="multipart/form-data"
               class="flex-1 overflow-y-auto">
             @csrf
             <input type="hidden" name="_method" :value="_mode === 'create' ? 'POST' : 'POST'">
@@ -361,6 +361,19 @@
                                    class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D]"
                                    placeholder="e.g. 4.5">
                         </div>
+                    </div>
+                </fieldset>
+
+                {{-- Attachments --}}
+                <fieldset>
+                    <legend class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Attachments</legend>
+                    <div>
+                        <input type="file" name="attachments[]" multiple
+                               class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-700 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:bg-[#E26B3D]/10 file:text-[#E26B3D] hover:file:bg-[#E26B3D]/20 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]">
+                        <p class="mt-1 text-xs text-slate-400">Photos, videos, PDFs, Word/Excel/PowerPoint docs, up to 20MB each.</p>
+                        <template x-if="_mode === 'edit'">
+                            <p class="mt-1 text-xs text-slate-400">Existing attachments can be managed from the task's detail page.</p>
+                        </template>
                     </div>
                 </fieldset>
 

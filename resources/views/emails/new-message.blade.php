@@ -31,7 +31,11 @@
         </p>
 
         <div class="message-box">
-            {{ \Illuminate\Support\Str::limit($message->body, 500) }}
+            @if($message->body)
+                {{ \Illuminate\Support\Str::limit($message->body, 500) }}
+            @else
+                {{ $message->attachments->isNotEmpty() ? '📎 Sent an attachment' : 'Sent a message' }}
+            @endif
         </div>
 
         <a href="{{ $conversationUrl }}" class="cta">View Message &rarr;</a>

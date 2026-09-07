@@ -38,7 +38,7 @@ $expActive      = request()->routeIs('expense*');
     $deptActive     = request()->routeIs('departments*');
     $roleActive     = request()->routeIs('roles*');
     $emailTplActive = request()->routeIs('email-templates*');
-    $dashActive     = request()->routeIs('dashboard');
+    $whiteboardActive = request()->routeIs('whiteboards*');
     $payrollActive  = request()->routeIs('payroll*');
     $salaryActive   = request()->routeIs('salary-histories*');
     $invoiceActive  = request()->routeIs('invoices*');
@@ -164,18 +164,21 @@ $expActive      = request()->routeIs('expense*');
                 $navInactive = 'text-[#F2EEE5]/60 hover:bg-white/10 hover:text-[#F2EEE5]';
             @endphp
 
-            {{-- Dashboard --}}
-            <a href="{{ route('dashboard') }}"
-               class="{{ $navLinkBase }} {{ $dashActive ? $navActive : $navInactive }}"
+            {{-- Whiteboards --}}
+            @if(auth()->user()->hasPermission('view_whiteboards'))
+            <a href="{{ route('whiteboards.index') }}"
+               class="{{ $navLinkBase }} {{ $whiteboardActive ? $navActive : $navInactive }}"
                :class="sidebarCollapsed ? 'justify-center py-2.5' : 'gap-3 px-3 py-2.5'"
-               :title="sidebarCollapsed ? 'Dashboard' : ''">
-                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+               :title="sidebarCollapsed ? 'Whiteboards' : ''">
+                <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+                    <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" stroke-width="2" fill="none"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8M12 17v4"/>
                 </svg>
                 <span class="whitespace-nowrap" x-show="!sidebarCollapsed"
                       x-transition:enter="transition-opacity duration-150 delay-75" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-                      x-transition:leave="transition-opacity duration-75" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">Dashboard</span>
+                      x-transition:leave="transition-opacity duration-75" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">Whiteboards</span>
             </a>
+            @endif
 
             {{-- ── People ─────────────────────────────── --}}
             @if($peopleItemsCount > 1)

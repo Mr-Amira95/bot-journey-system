@@ -70,7 +70,7 @@ class Task extends Model
 
     public function attachments(): HasMany
     {
-        return $this->hasMany(TaskAttachment::class);
+        return $this->hasMany(TaskAttachment::class)->whereNull('comment_id');
     }
 
     public function dependencies(): HasMany
