@@ -285,13 +285,6 @@
             </button>
         </div>
 
-        {{-- Recording indicator --}}
-        <div x-show="isRecording" x-cloak class="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-2 text-sm text-red-600">
-            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-            <span x-text="'Recording… ' + formatDuration(recordingSeconds)"></span>
-            <button type="button" @click="cancelRecording()" class="ml-auto text-red-400 hover:text-red-700 text-xs font-medium">Cancel</button>
-        </div>
-
         <div class="flex items-end gap-2">
             <input type="file" x-ref="fileInput" multiple class="hidden"
                    accept="image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip"
@@ -312,13 +305,29 @@
                       @keydown.enter.prevent="!$event.shiftKey && send()"
                       @input="$el.style.height='auto'; $el.style.height=Math.min($el.scrollHeight, 128)+'px'"></textarea>
 
+            {{-- Live recording indicator — sits inline where the textarea would be --}}
+            <div x-show="isRecording" x-cloak
+                 class="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-600 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                <span class="font-mono shrink-0" x-text="formatDuration(recordingSeconds)"></span>
+                <span class="text-red-400 truncate">Recording…</span>
+                <button type="button" @click="cancelRecording()" class="ml-auto shrink-0 text-red-400 hover:text-red-700 text-xs font-medium">Cancel</button>
+            </div>
+
             <button type="button" @click="isRecording ? stopRecording() : startRecording()"
                     :disabled="sending"
                     class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
                     :class="isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-stone-100'">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18.5a3.5 3.5 0 003.5-3.5V6.5a3.5 3.5 0 10-7 0V15a3.5 3.5 0 003.5 3.5zM19 10v1a7 7 0 01-14 0v-1m7 10v3m-4 0h8"/>
-                </svg>
+                <template x-if="!isRecording">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18.5a3.5 3.5 0 003.5-3.5V6.5a3.5 3.5 0 10-7 0V15a3.5 3.5 0 003.5 3.5zM19 10v1a7 7 0 01-14 0v-1m7 10v3m-4 0h8"/>
+                    </svg>
+                </template>
+                <template x-if="isRecording">
+                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                        <rect x="5" y="5" width="14" height="14" rx="2"/>
+                    </svg>
+                </template>
             </button>
 
             <button @click="send()" :disabled="sending || isRecording"
@@ -448,15 +457,30 @@ document.addEventListener('alpine:init', function () {
             async send() {
                 const body = this.$refs.input.value.trim();
                 if (this.sending || (!body && this.pendingFiles.length === 0 && !this.recordedBlob)) return;
+
+                // Snapshot what we're sending, then clear the compose box immediately
+                // so it never looks like the message "stuck" while the request is in flight.
+                const filesToSend  = this.pendingFiles;
+                const voiceToSend  = this.recordedBlob;
+                const voiceSeconds = this.recordedSeconds;
+                const replyTo      = this.replyTo;
+
+                this.$refs.input.value = '';
+                this.$refs.input.style.height = 'auto';
+                this.pendingFiles = [];
+                this.recordedBlob = null;
+                this.recordedSeconds = 0;
+                this.clearReply();
+
                 this.sending = true;
                 try {
                     const formData = new FormData();
                     if (body) formData.append('body', body);
-                    if (this.replyTo) formData.append('reply_to', this.replyTo);
-                    this.pendingFiles.forEach(file => formData.append('attachments[]', file));
-                    if (this.recordedBlob) {
-                        formData.append('voice', this.recordedBlob, 'voice-message.webm');
-                        formData.append('voice_duration', this.recordedSeconds);
+                    if (replyTo) formData.append('reply_to', replyTo);
+                    filesToSend.forEach(file => formData.append('attachments[]', file));
+                    if (voiceToSend) {
+                        formData.append('voice', voiceToSend, 'voice-message.webm');
+                        formData.append('voice_duration', voiceSeconds);
                     }
 
                     const res = await fetch('{{ route('conversations.messages.store', $conversation) }}', {
@@ -470,14 +494,12 @@ document.addEventListener('alpine:init', function () {
                     const data = await res.json();
                     if (data.success) {
                         this.messages.push(data.message);
-                        this.$refs.input.value = '';
-                        this.$refs.input.style.height = 'auto';
-                        this.pendingFiles = [];
-                        this.recordedBlob = null;
-                        this.recordedSeconds = 0;
-                        this.clearReply();
                         this.$nextTick(() => this.scrollBottom());
+                    } else {
+                        alert('Failed to send message. Please try again.');
                     }
+                } catch (e) {
+                    alert('Failed to send message. Please try again.');
                 } finally {
                     this.sending = false;
                 }
