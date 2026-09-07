@@ -16,6 +16,12 @@
 @endsection
 
 @section('content')
+@php
+    $canEditTasks    = auth()->user()->hasPermission('edit_tasks');
+    $canDeleteTasks  = auth()->user()->hasPermission('delete_tasks');
+    $statusOptions   = collect($statuses)->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()])->values();
+    $priorityOptions = collect($priorities)->map(fn ($p) => ['value' => $p->value, 'label' => ucfirst($p->value)])->values();
+@endphp
 @if($viewingAll)
 <div class="flex items-center gap-1 bg-slate-100 rounded-xl p-1 w-fit mb-5">
     <a href="{{ route('tasks.index', ['tab' => 'mine']) }}"
@@ -33,19 +39,19 @@
 </div>
 @endif
 <div x-data="{
-        panelOpen: {{ $errors->any() ? 'true' : 'false' }},
-        _mode: '{{ old('_mode', 'create') }}',
-        record_id: {{ old('record_id', 'null') }},
+        panelOpen: {{ $errors->any() || $editTask ? 'true' : 'false' }},
+        _mode: '{{ old('_mode', $editTask ? 'edit' : 'create') }}',
+        record_id: {{ $editTask ? $editTask->id : old('record_id', 'null') }},
         formData: {
-            project_id:      '{{ old('project_id', '') }}',
-            title:           '{{ old('title', '') }}',
-            description:     '{{ old('description', '') }}',
-            status:          '{{ old('status', 'todo') }}',
-            priority:        '{{ old('priority', 'medium') }}',
-            start_date:      '{{ old('start_date', '') }}',
-            due_date:        '{{ old('due_date', '') }}',
-            estimated_hours: '{{ old('estimated_hours', '') }}',
-            assignees:       {!! json_encode(array_map('strval', old('assignees', []))) !!},
+            project_id:      '{{ old('project_id', $editTask->project_id ?? '') }}',
+            title:           {{ json_encode(old('title', $editTask->title ?? '')) }},
+            description:     {{ json_encode(old('description', $editTask->description ?? '')) }},
+            status:          '{{ old('status', $editTask->status->value ?? 'todo') }}',
+            priority:        '{{ old('priority', $editTask->priority->value ?? 'medium') }}',
+            start_date:      '{{ old('start_date', $editTask?->start_date?->format('Y-m-d') ?? '') }}',
+            due_date:        '{{ old('due_date', $editTask?->due_date?->format('Y-m-d') ?? '') }}',
+            estimated_hours: '{{ old('estimated_hours', $editTask->estimated_hours ?? '') }}',
+            assignees:       {!! json_encode(old('assignees', $editTask ? $editTask->assignees->pluck('user_id')->map(fn($id) => (string)$id)->toArray() : [])) !!},
         },
         openCreate() {
             this._mode = 'create';
@@ -113,11 +119,19 @@
             </select>
         </div>
         @endif
+        <div class="min-w-44">
+            <select name="group_by" onchange="this.form.submit()"
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D]">
+                <option value="">No Grouping</option>
+                <option value="project" @selected($groupBy === 'project')>Group by Project</option>
+                <option value="status" @selected($groupBy === 'status')>Group by Status</option>
+            </select>
+        </div>
         <button type="submit"
                 class="px-4 py-2 bg-[#E26B3D] text-white text-sm rounded-lg hover:bg-[#c85a2f] transition-colors">
             Filter
         </button>
-        @if(request()->hasAny(['search', 'project_id', 'status', 'priority', 'assigned_to', 'created_by_user']))
+        @if(request()->hasAny(['search', 'project_id', 'status', 'priority', 'assigned_to', 'created_by_user', 'group_by']))
             <a href="{{ route('tasks.index', ['tab' => $tab]) }}"
                class="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors">
                 Clear
@@ -141,117 +155,42 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
-                @php
-                    $canEditTasks   = auth()->user()->hasPermission('edit_tasks');
-                    $canDeleteTasks = auth()->user()->hasPermission('delete_tasks');
-                @endphp
-                @forelse($tasks as $task)
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-4 py-3">
-                            <p class="font-medium text-slate-800">{{ $task->title }}</p>
-                            @if($task->description)
-                                <p class="text-xs text-slate-400 truncate max-w-xs mt-0.5">{{ Str::limit($task->description, 60) }}</p>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-slate-600">
-                            <a href="{{ route('projects.show', $task->project) }}" class="hover:text-[#E26B3D] transition-colors">
-                                {{ $task->project->name }}
-                            </a>
-                        </td>
-                        <td class="px-4 py-3">
-                            @php
-                                $statusColors = [
-                                    'todo'        => 'bg-slate-100 text-slate-700',
-                                    'in_progress' => 'bg-blue-100 text-blue-700',
-                                    'review'      => 'bg-amber-100 text-amber-700',
-                                    'done'        => 'bg-emerald-100 text-emerald-700',
-                                    'blocked'     => 'bg-red-100 text-red-700',
-                                ];
-                                $sc = $statusColors[$task->status->value] ?? 'bg-slate-100 text-slate-700';
-                            @endphp
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $sc }}">
-                                {{ $task->status->label() }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3">
-                            @php
-                                $priorityColors = [
-                                    'low'    => 'bg-slate-100 text-slate-600',
-                                    'medium' => 'bg-blue-100 text-blue-700',
-                                    'high'   => 'bg-orange-100 text-orange-700',
-                                    'urgent' => 'bg-red-100 text-red-700',
-                                ];
-                                $pc = $priorityColors[$task->priority->value] ?? 'bg-slate-100 text-slate-600';
-                            @endphp
-                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium {{ $pc }}">
-                                {{ ucfirst($task->priority->value) }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-slate-600 font-mono text-xs">
-                            @if($task->due_date)
-                                <span class="{{ $task->due_date->isPast() && $task->status->value !== 'done' ? 'text-red-600 font-semibold' : '' }}">
-                                    {{ $task->due_date->format('d M Y') }}
-                                </span>
-                            @else
-                                <span class="text-slate-400">—</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-slate-600">
-                            @if($task->assignees_count > 0)
-                                <span class="inline-flex items-center gap-1 text-xs text-slate-500">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    </svg>
-                                    {{ $task->assignees_count }}
-                                </span>
-                            @else
-                                <span class="text-slate-400 text-xs">—</span>
-                            @endif
-                        </td>
-                        <td class="px-4 py-3 text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                @if($canEditTasks)
-                                <button @click="openEdit({
-                                            id:              {{ $task->id }},
-                                            project_id:      '{{ $task->project_id }}',
-                                            title:           {{ json_encode($task->title) }},
-                                            description:     {{ json_encode($task->description ?? '') }},
-                                            status:          '{{ $task->status->value }}',
-                                            priority:        '{{ $task->priority->value }}',
-                                            start_date:      '{{ $task->start_date?->format('Y-m-d') ?? '' }}',
-                                            due_date:        '{{ $task->due_date?->format('Y-m-d') ?? '' }}',
-                                            estimated_hours: '{{ $task->estimated_hours ?? '' }}',
-                                            assignees:       {{ $task->assignees->pluck('user_id')->map(fn($id) => (string)$id)->toJson() }},
-                                        })"
-                                        class="text-xs text-slate-500 hover:text-[#E26B3D] transition-colors px-2 py-1 rounded hover:bg-orange-50">
-                                    Edit
-                                </button>
+                @if($groupBy)
+                    @forelse($groups as $groupLabel => $groupTasks)
+                        <tr class="bg-slate-50/80">
+                            <td colspan="7" class="px-4 py-2 text-xs font-semibold text-slate-600 uppercase tracking-wide">
+                                {{ $groupLabel }}
+                                <span class="ml-1 text-slate-400 normal-case font-normal">({{ $groupTasks->count() }})</span>
+                            </td>
+                        </tr>
+                        @foreach($groupTasks as $task)
+                            @include('tasks._row', ['task' => $task])
+                        @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-4 py-12 text-center text-slate-400">No tasks found.</td>
+                        </tr>
+                    @endforelse
+                @else
+                    @forelse($tasks as $task)
+                        @include('tasks._row', ['task' => $task])
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-4 py-12 text-center text-slate-400">
+                                No tasks found.
+                                @if(auth()->user()->hasPermission('create_tasks'))
+                                <button @click="openCreate()" class="ml-1 text-[#E26B3D] hover:underline">Create the first one.</button>
                                 @endif
-                                @if($canDeleteTasks)
-                                <button @click="$dispatch('confirm:delete', { action: '{{ route('tasks.destroy', $task) }}' })"
-                                        class="text-xs text-slate-500 hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50">
-                                    Delete
-                                </button>
-                                @endif
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-slate-400">
-                            No tasks found.
-                            @if(auth()->user()->hasPermission('create_tasks'))
-                            <button @click="openCreate()" class="ml-1 text-[#E26B3D] hover:underline">Create the first one.</button>
-                            @endif
-                        </td>
-                    </tr>
-                @endforelse
+                            </td>
+                        </tr>
+                    @endforelse
+                @endif
             </tbody>
         </table>
         </div>
     </div>
 
-    @if($tasks->hasPages())
+    @if($tasks && $tasks->hasPages())
         <div class="mt-4">{{ $tasks->links() }}</div>
     @endif
 
@@ -433,4 +372,10 @@
     </div>
 
 </div>
+
+<script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('taskUsers', @json($users->map(fn ($u) => ['id' => $u->id, 'name' => $u->name])->values()));
+    });
+</script>
 @endsection

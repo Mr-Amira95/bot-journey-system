@@ -144,7 +144,9 @@ Route::middleware(['auth', 'password.change'])->group(function () {
     Route::prefix('tasks')->name('tasks.')->group(function () {
         Route::get('/', [TaskController::class, 'index'])->name('index');
         Route::post('/', [TaskController::class, 'store'])->name('store');
+        Route::get('/{task}', [TaskController::class, 'show'])->name('show');
         Route::post('/{task}', [TaskController::class, 'update'])->name('update');
+        Route::patch('/{task}/quick-update', [TaskController::class, 'quickUpdate'])->name('quick-update');
         Route::delete('/{task}', [TaskController::class, 'destroy'])->name('destroy');
     });
 
