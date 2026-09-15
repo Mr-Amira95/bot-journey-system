@@ -261,6 +261,7 @@ Route::middleware(['auth', 'password.change'])->group(function () {
     Route::prefix('brds')->name('brds.')->group(function () {
         Route::get('/', [BrdController::class, 'index'])->name('index');
         Route::post('/', [BrdController::class, 'store'])->name('store');
+        Route::get('/{brd}', [BrdController::class, 'show'])->name('show');
         Route::post('/{brd}', [BrdController::class, 'update'])->name('update');
         Route::post('/{brd}/approve', [BrdController::class, 'approve'])->name('approve');
         Route::post('/{brd}/reject', [BrdController::class, 'reject'])->name('reject');

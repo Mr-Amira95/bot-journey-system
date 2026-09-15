@@ -233,6 +233,7 @@
             <button @click="openEdit({
                         id:              {{ $task->id }},
                         project_id:      '{{ $task->project_id }}',
+                        brd_id:          '{{ $task->brd_id }}',
                         title:           {{ json_encode($task->title) }},
                         description:     {{ json_encode($task->description ?? '') }},
                         status:          status,

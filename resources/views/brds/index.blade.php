@@ -30,18 +30,18 @@
 @endif
 
 <div x-data="{
-    open: {{ $errors->any() ? 'true' : 'false' }},
-    mode: '{{ old('_mode', 'create') }}',
-    recordId: {{ old('record_id', 'null') }},
+    open: {{ $errors->any() || $editBrd ? 'true' : 'false' }},
+    mode: '{{ old('_mode', $editBrd ? 'edit' : 'create') }}',
+    recordId: {{ $editBrd ? $editBrd->id : old('record_id', 'null') }},
     submitted: false,
     formData: {
-        project_id:   '{{ old('project_id', '') }}',
-        title:        '{{ old('title', '') }}',
-        description:  `{{ old('description', '') }}`,
-        objective:    `{{ old('objective', '') }}`,
-        scope:        `{{ old('scope', '') }}`,
-        stakeholders: `{{ old('stakeholders', '') }}`,
-        priority:     '{{ old('priority', 'medium') }}'
+        project_id:   '{{ old('project_id', $editBrd->project_id ?? '') }}',
+        title:        {{ json_encode(old('title', $editBrd->title ?? '')) }},
+        description:  {{ json_encode(old('description', $editBrd->description ?? '')) }},
+        objective:    {{ json_encode(old('objective', $editBrd->objective ?? '')) }},
+        scope:        {{ json_encode(old('scope', $editBrd->scope ?? '')) }},
+        stakeholders: {{ json_encode(old('stakeholders', $editBrd->stakeholders ?? '')) }},
+        priority:     '{{ old('priority', $editBrd->priority->value ?? 'medium') }}'
     },
     openCreate() {
         this.mode = 'create'; this.recordId = null; this.submitted = false;
@@ -114,7 +114,9 @@
                         $isOwner = $brd->created_by === auth()->id();
                     @endphp
                     <tr class="hover:bg-stone-50/60 transition-colors">
-                        <td class="px-5 py-4 font-medium text-slate-800">{{ $brd->title }}</td>
+                        <td class="px-5 py-4 font-medium text-slate-800">
+                            <a href="{{ route('brds.show', $brd) }}" class="hover:text-[#E26B3D] transition-colors">{{ $brd->title }}</a>
+                        </td>
                         <td class="px-5 py-4 text-slate-700">{{ $brd->project?->name ?? '—' }}</td>
                         @if($tab === 'all')
                         <td class="px-5 py-4 text-slate-700">{{ $brd->creator?->name ?? '—' }}</td>

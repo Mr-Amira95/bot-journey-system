@@ -44,6 +44,7 @@
         record_id: {{ $editTask ? $editTask->id : old('record_id', 'null') }},
         formData: {
             project_id:      '{{ old('project_id', $editTask->project_id ?? '') }}',
+            brd_id:          '{{ old('brd_id', $editTask->brd_id ?? '') }}',
             title:           {{ json_encode(old('title', $editTask->title ?? '')) }},
             description:     {{ json_encode(old('description', $editTask->description ?? '')) }},
             status:          '{{ old('status', $editTask->status->value ?? 'todo') }}',
@@ -56,7 +57,7 @@
         openCreate() {
             this._mode = 'create';
             this.record_id = null;
-            this.formData = { project_id: '', title: '', description: '', status: 'todo', priority: 'medium', start_date: '', due_date: '', estimated_hours: '', assignees: [] };
+            this.formData = { project_id: '', brd_id: '', title: '', description: '', status: 'todo', priority: 'medium', start_date: '', due_date: '', estimated_hours: '', assignees: [] };
             this.panelOpen = true;
         },
         openEdit(data) {
@@ -292,6 +293,17 @@
                                 <option value="">Select project…</option>
                                 @foreach($projects as $project)
                                     <option value="{{ $project->id }}">{{ $project->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">BRD <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <select name="brd_id" @change="formData.brd_id = $event.target.value"
+                                    class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D]"
+                                    x-effect="$el.value = formData.brd_id">
+                                <option value="">No BRD</option>
+                                @foreach($brds as $brd)
+                                    <option value="{{ $brd->id }}">{{ $brd->title }}</option>
                                 @endforeach
                             </select>
                         </div>

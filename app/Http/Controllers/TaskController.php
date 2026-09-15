@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\TaskLogAction;
 use App\Enums\TaskPriority;
 use App\Enums\TaskStatus;
+use App\Models\Brd;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\TaskAssignee;
@@ -60,6 +61,7 @@ class TaskController extends Controller
         }
 
         $projects   = Project::orderBy('name')->get();
+        $brds       = Brd::orderBy('title')->get();
         $users      = User::orderBy('name')->get();
         $statuses   = TaskStatus::cases();
         $priorities = TaskPriority::cases();
@@ -97,7 +99,7 @@ class TaskController extends Controller
         }
 
         return view('tasks.index', compact(
-            'tasks', 'groups', 'groupBy', 'projects', 'users', 'statuses', 'priorities', 'viewingAll', 'tab', 'editTask'
+            'tasks', 'groups', 'groupBy', 'projects', 'brds', 'users', 'statuses', 'priorities', 'viewingAll', 'tab', 'editTask'
         ));
     }
 
@@ -113,7 +115,7 @@ class TaskController extends Controller
         }
 
         $task->load([
-            'project', 'createdBy', 'updatedBy', 'assignees.user',
+            'project', 'brd', 'createdBy', 'updatedBy', 'assignees.user',
             'comments' => fn ($q) => $q->whereNull('parent_id')
                 ->with(['user', 'attachments.user', 'replies.user', 'replies.attachments.user'])
                 ->oldest(),
@@ -131,6 +133,7 @@ class TaskController extends Controller
         abort_unless(auth()->user()->hasPermission('create_tasks'), 403);
         $data = $request->validate([
             'project_id'      => ['required', 'exists:projects,id'],
+            'brd_id'          => ['nullable', 'exists:brds,id'],
             'title'           => ['required', 'string', 'max:255'],
             'description'     => ['nullable', 'string'],
             'status'          => ['required', Rule::enum(TaskStatus::class)],
@@ -178,6 +181,7 @@ class TaskController extends Controller
         abort_unless(auth()->user()->hasPermission('edit_tasks'), 403);
         $data = $request->validate([
             'project_id'      => ['required', 'exists:projects,id'],
+            'brd_id'          => ['nullable', 'exists:brds,id'],
             'title'           => ['required', 'string', 'max:255'],
             'description'     => ['nullable', 'string'],
             'status'          => ['required', Rule::enum(TaskStatus::class)],

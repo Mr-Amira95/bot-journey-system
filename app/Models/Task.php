@@ -15,6 +15,7 @@ class Task extends Model
 
     protected $fillable = [
         'project_id',
+        'brd_id',
         'title',
         'description',
         'status',
@@ -41,6 +42,11 @@ class Task extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
+    }
+
+    public function brd(): BelongsTo
+    {
+        return $this->belongsTo(Brd::class);
     }
 
     public function createdBy(): BelongsTo

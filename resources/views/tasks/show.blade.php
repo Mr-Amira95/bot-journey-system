@@ -84,6 +84,16 @@
                 <p class="text-sm text-slate-700">{{ $task->estimated_hours ?? '—' }}</p>
             </div>
             <div>
+                <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">BRD</p>
+                <p class="text-sm text-slate-700">
+                    @if($task->brd)
+                        <a href="{{ route('brds.show', $task->brd) }}" class="hover:text-[#E26B3D] transition-colors">{{ $task->brd->title }}</a>
+                    @else
+                        —
+                    @endif
+                </p>
+            </div>
+            <div>
                 <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Created By</p>
                 <p class="text-sm text-slate-700">{{ $task->createdBy?->name ?? '—' }}</p>
             </div>

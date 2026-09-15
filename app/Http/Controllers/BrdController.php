@@ -50,11 +50,36 @@ class BrdController extends Controller
         $statuses = BrdStatus::cases();
         $priorities = BrdPriority::cases();
         $canApprove = auth()->user()->hasPermission('approve_brds');
+        $canEditBrd = auth()->user()->hasPermission('edit_brds');
         $canExport  = auth()->user()->hasPermission('export_brds');
 
+        $editBrd = null;
+        if ($canEditBrd && $request->filled('edit')) {
+            $editBrd = Brd::find($request->get('edit'));
+            if ($editBrd && $tab === 'mine' && $editBrd->created_by !== auth()->id()) {
+                $editBrd = null;
+            }
+        }
+
         return view('brds.index', compact(
-            'brds', 'projects', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canExport'
+            'brds', 'projects', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canExport', 'editBrd'
         ));
+    }
+
+    public function show(Brd $brd)
+    {
+        abort_unless(auth()->user()->hasPermission('view_brds'), 403);
+        $canViewAll = auth()->user()->hasPermission('view_all_brds');
+        abort_unless($canViewAll || $brd->created_by === auth()->id(), 403);
+
+        $brd->load(['project', 'creator', 'updater', 'approver', 'tasks']);
+
+        $canApprove = auth()->user()->hasPermission('approve_brds');
+        $canEditBrd = auth()->user()->hasPermission('edit_brds');
+        $canDeleteBrd = auth()->user()->hasPermission('delete_brds');
+        $canExport  = auth()->user()->hasPermission('export_brds');
+
+        return view('brds.show', compact('brd', 'canApprove', 'canEditBrd', 'canDeleteBrd', 'canExport'));
     }
 
     public function store(Request $request)
