@@ -22,6 +22,7 @@ use App\Http\Controllers\ProjectBudgetController;
 use App\Http\Controllers\EmailTemplateController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\BrdController;
 use App\Http\Controllers\LeaveBalanceController;
 use App\Http\Controllers\OvertimeRequestController;
 use App\Http\Controllers\EmployeeBreakController;
@@ -253,6 +254,18 @@ Route::middleware(['auth', 'password.change'])->group(function () {
         Route::post('/', [WorkScheduleController::class, 'store'])->name('store');
         Route::post('/{workSchedule}', [WorkScheduleController::class, 'update'])->name('update');
         Route::delete('/{workSchedule}', [WorkScheduleController::class, 'destroy'])->name('destroy');
+    });
+
+    // ── Documentations ───────────────────────────────────────────────────────
+
+    Route::prefix('brds')->name('brds.')->group(function () {
+        Route::get('/', [BrdController::class, 'index'])->name('index');
+        Route::post('/', [BrdController::class, 'store'])->name('store');
+        Route::post('/{brd}', [BrdController::class, 'update'])->name('update');
+        Route::post('/{brd}/approve', [BrdController::class, 'approve'])->name('approve');
+        Route::post('/{brd}/reject', [BrdController::class, 'reject'])->name('reject');
+        Route::get('/{brd}/export', [BrdController::class, 'export'])->name('export');
+        Route::delete('/{brd}', [BrdController::class, 'destroy'])->name('destroy');
     });
 
     // ── Notifications ─────────────────────────────────────────────────────────

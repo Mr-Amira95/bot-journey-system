@@ -9,7 +9,12 @@
     .header { background: #0f1b3d; padding: 28px 36px; }
     .header-title { color: #E26B3D; font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 8px; }
     .content { padding: 36px; color: #1a1a2e; font-size: 15px; line-height: 1.7; }
-    .message-box { border-left: 3px solid #E26B3D; background: #fbfbfb; padding: 12px 16px; margin: 16px 0; color: #333; font-size: 14px; }
+    .status-badge { display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+    .status-approved { background: #e6f6ec; color: #1a7f4b; }
+    .status-rejected { background: #fdecec; color: #c0392b; }
+    .status-pending { background: #fff6e5; color: #b8860b; }
+    .info-card { background: #f8f8f8; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 20px; margin: 20px 0; font-size: 14px; }
+    .info-card div { margin-bottom: 4px; }
     .cta { display: inline-block; margin-top: 24px; padding: 12px 28px; background: #E26B3D; color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600; }
     .divider { border: none; border-top: 1px solid #eee; margin: 28px 0; }
     .footer { background: #f9f9f9; padding: 20px 36px; text-align: center; color: #999; font-size: 12px; border-top: 1px solid #eee; }
@@ -19,30 +24,27 @@
 <div class="wrapper">
     <div class="header">
         <div style="color:#fff; font-size:18px; font-weight:700; letter-spacing:1px;">{{ config('app.name', 'BotJourney') }}</div>
-        <div class="header-title">New Message</div>
+        <div class="header-title">BRD Update</div>
     </div>
     <div class="content">
         <p>Hi {{ $notifiable->name }},</p>
-        <p>
-            <strong>{{ $sender->name }}</strong> sent you a message
-            @if ($conversation->title)
-                in &quot;{{ $conversation->title }}&quot;
-            @endif
+        <p>Your Business Requirements Document has been
+            <span class="status-badge status-{{ $status }}">{{ $label }}</span>
         </p>
 
-        <div class="message-box">
-            @if($chatMessage->body)
-                {{ \Illuminate\Support\Str::limit($chatMessage->body, 500) }}
-            @else
-                {{ $chatMessage->attachments->isNotEmpty() ? '📎 Sent an attachment' : 'Sent a message' }}
+        <div class="info-card">
+            <div><strong>Title:</strong> {{ $brd->title }}</div>
+            <div><strong>Project:</strong> {{ $brd->project?->name }}</div>
+            @if ($status === 'rejected' && $brd->rejection_reason)
+                <div><strong>Reason:</strong> {{ $brd->rejection_reason }}</div>
             @endif
         </div>
 
-        <a href="{{ $conversationUrl }}" class="cta">View Message &rarr;</a>
+        <a href="{{ $listUrl }}" class="cta">View BRDs &rarr;</a>
 
         <hr class="divider">
         <p style="font-size:13px; color:#666;">
-            You can reply from the Messages section.
+            If you have questions about this decision, please contact the approver.
         </p>
     </div>
     <div class="footer">

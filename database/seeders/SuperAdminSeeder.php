@@ -40,6 +40,7 @@ class SuperAdminSeeder extends Seeder
             'work_schedules'     => ['View Work Schedules',     'Create Work Schedules',     'Edit Work Schedules',     'Delete Work Schedules'],
             'email_templates'    => ['View Email Templates',    'Create Email Templates',    'Edit Email Templates',    'Delete Email Templates'],
             'activity_logs'      => ['View Activity Logs',      'Create Activity Logs',      'Edit Activity Logs',      'Delete Activity Logs'],
+            'brds'               => ['View BRDs',                'Create BRDs',                'Edit BRDs',                'Delete BRDs'],
         ];
 
         $actions = ['view', 'create', 'edit', 'delete'];
@@ -79,6 +80,9 @@ class SuperAdminSeeder extends Seeder
             ['slug' => 'approve_payroll',            'name' => 'Approve Payroll',                  'module' => 'oversight'],
             ['slug' => 'mark_payroll_paid',          'name' => 'Mark Payroll as Paid',             'module' => 'oversight'],
             ['slug' => 'record_invoice_payment',     'name' => 'Record Invoice Payment',           'module' => 'oversight'],
+            ['slug' => 'view_all_brds',              'name' => 'View All BRDs',                    'module' => 'oversight'],
+            ['slug' => 'approve_brds',               'name' => 'Approve BRDs',                     'module' => 'oversight'],
+            ['slug' => 'export_brds',                'name' => 'Export BRDs',                      'module' => 'oversight'],
         ];
 
         foreach ($oversight as $item) {

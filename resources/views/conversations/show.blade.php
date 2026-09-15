@@ -116,6 +116,26 @@
      x-init="$nextTick(() => scrollBottom())"
      x-on:chat-message-received.window="pushMessage($event.detail)">
 
+    {{-- New message toasts --}}
+    <div class="fixed top-4 right-4 z-50 flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]">
+        <template x-for="toast in toasts" :key="toast.id">
+            <div x-show="true" x-transition
+                 class="bg-white border border-slate-200 shadow-lg rounded-xl px-4 py-3 flex items-start gap-3">
+                <div class="w-8 h-8 rounded-full bg-[#0f1b3d] flex items-center justify-center text-white text-xs font-semibold shrink-0"
+                     x-text="toast.sender ? toast.sender[0].toUpperCase() : '?'"></div>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm font-semibold text-slate-800 truncate" x-text="toast.sender"></p>
+                    <p class="text-xs text-slate-500 truncate" x-text="toast.text"></p>
+                </div>
+                <button @click="toasts = toasts.filter(t => t.id !== toast.id)" class="text-slate-300 hover:text-slate-500 shrink-0">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </template>
+    </div>
+
     {{-- Messages area --}}
     <div x-ref="msgContainer" class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
 
@@ -302,22 +322,22 @@
                       placeholder="Type a message…"
                       x-show="!isRecording"
                       class="flex-1 resize-none px-4 py-2.5 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/30 focus:border-[#E26B3D] bg-stone-50 max-h-32 overflow-y-auto"
-                      @keydown.enter.prevent="!$event.shiftKey && send()"
+                      @keydown.enter="if (!$event.shiftKey) { $event.preventDefault(); send(); }"
                       @input="$el.style.height='auto'; $el.style.height=Math.min($el.scrollHeight, 128)+'px'"></textarea>
 
             {{-- Live recording indicator — sits inline where the textarea would be --}}
             <div x-show="isRecording" x-cloak
                  class="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-600 min-w-0">
-                <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+                <span class="w-2 h-2 rounded-full bg-red-600 animate-pulse shrink-0"></span>
                 <span class="font-mono shrink-0" x-text="formatDuration(recordingSeconds)"></span>
                 <span class="text-red-400 truncate">Recording…</span>
                 <button type="button" @click="cancelRecording()" class="ml-auto shrink-0 text-red-400 hover:text-red-700 text-xs font-medium">Cancel</button>
             </div>
 
             <button type="button" @click="isRecording ? stopRecording() : startRecording()"
-                    :disabled="sending"
+                    :disabled="sending || finalizingRecording"
                     class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors disabled:opacity-40"
-                    :class="isRecording ? 'bg-red-500 hover:bg-red-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-stone-100'">
+                    :class="isRecording ? 'bg-red-600 hover:bg-red-700 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-stone-100'">
                 <template x-if="!isRecording">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18.5a3.5 3.5 0 003.5-3.5V6.5a3.5 3.5 0 10-7 0V15a3.5 3.5 0 003.5 3.5zM19 10v1a7 7 0 01-14 0v-1m7 10v3m-4 0h8"/>
@@ -330,7 +350,7 @@
                 </template>
             </button>
 
-            <button @click="send()" :disabled="sending || isRecording"
+            <button @click="send()" :disabled="sending || isRecording || finalizingRecording"
                     class="w-10 h-10 rounded-full bg-[#E26B3D] hover:bg-[#c95a2f] disabled:opacity-50 text-white flex items-center justify-center shrink-0 transition-colors">
                 <template x-if="!sending">
                     <svg class="w-4 h-4 translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -389,6 +409,7 @@ document.addEventListener('alpine:init', function () {
 
             pendingFiles: [],
             isRecording: false,
+            finalizingRecording: false,
             recordingSeconds: 0,
             recordedBlob: null,
             recordedSeconds: 0,
@@ -396,6 +417,8 @@ document.addEventListener('alpine:init', function () {
             recordedChunks: [],
             recordingTimer: null,
             mediaStream: null,
+            toasts: [],
+            toastSeq: 0,
 
             setReply(msg) {
                 this.replyTo = msg.id;
@@ -410,21 +433,41 @@ document.addEventListener('alpine:init', function () {
             },
 
             async startRecording() {
-                if (this.isRecording) return;
+                if (this.isRecording || this.finalizingRecording) return;
                 try {
                     this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 } catch (e) {
                     alert('Microphone access is required to record a voice message.');
                     return;
                 }
-                this.recordedChunks = [];
-                this.mediaRecorder = new MediaRecorder(this.mediaStream);
-                this.mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) this.recordedChunks.push(e.data); };
-                this.mediaRecorder.onstop = () => {
-                    this.recordedBlob = new Blob(this.recordedChunks, { type: this.mediaRecorder.mimeType || 'audio/webm' });
-                    this.recordedSeconds = this.recordingSeconds;
+
+                const preferredTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg'];
+                const mimeType = (window.MediaRecorder && MediaRecorder.isTypeSupported)
+                    ? (preferredTypes.find(t => MediaRecorder.isTypeSupported(t)) || '')
+                    : '';
+
+                try {
+                    this.mediaRecorder = mimeType
+                        ? new MediaRecorder(this.mediaStream, { mimeType })
+                        : new MediaRecorder(this.mediaStream);
+                } catch (e) {
+                    alert('Voice recording is not supported in this browser.');
                     this.mediaStream.getTracks().forEach(t => t.stop());
                     this.mediaStream = null;
+                    return;
+                }
+
+                this.recordedChunks = [];
+                this.mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) this.recordedChunks.push(e.data); };
+                this.mediaRecorder.onstop = () => {
+                    // Runs once the encoder has fully flushed — only now is the blob actually ready to send.
+                    if (this.recordedChunks.length > 0) {
+                        this.recordedBlob = new Blob(this.recordedChunks, { type: this.mediaRecorder.mimeType || mimeType || 'audio/webm' });
+                        this.recordedSeconds = this.recordingSeconds;
+                    }
+                    this.mediaStream?.getTracks().forEach(t => t.stop());
+                    this.mediaStream = null;
+                    this.finalizingRecording = false;
                 };
                 this.mediaRecorder.start();
                 this.isRecording = true;
@@ -433,16 +476,18 @@ document.addEventListener('alpine:init', function () {
             },
 
             stopRecording() {
-                if (!this.isRecording) return;
+                if (!this.isRecording || !this.mediaRecorder) return;
                 clearInterval(this.recordingTimer);
                 this.isRecording = false;
-                this.mediaRecorder?.stop();
+                this.finalizingRecording = true;
+                this.mediaRecorder.stop();
             },
 
             cancelRecording() {
                 if (!this.isRecording) return;
                 clearInterval(this.recordingTimer);
                 this.isRecording = false;
+                this.finalizingRecording = false;
                 if (this.mediaRecorder) {
                     this.mediaRecorder.onstop = () => {
                         this.mediaStream?.getTracks().forEach(t => t.stop());
@@ -454,7 +499,19 @@ document.addEventListener('alpine:init', function () {
                 this.recordedChunks = [];
             },
 
+            async waitForRecordingFinalize() {
+                let waited = 0;
+                while (this.finalizingRecording && waited < 2000) {
+                    await new Promise(r => setTimeout(r, 50));
+                    waited += 50;
+                }
+            },
+
             async send() {
+                // If "stop" was just pressed, the recorder may still be flushing its final
+                // chunk — wait for it so the voice message isn't silently dropped.
+                if (this.finalizingRecording) await this.waitForRecordingFinalize();
+
                 const body = this.$refs.input.value.trim();
                 if (this.sending || (!body && this.pendingFiles.length === 0 && !this.recordedBlob)) return;
 
@@ -479,7 +536,10 @@ document.addEventListener('alpine:init', function () {
                     if (replyTo) formData.append('reply_to', replyTo);
                     filesToSend.forEach(file => formData.append('attachments[]', file));
                     if (voiceToSend) {
-                        formData.append('voice', voiceToSend, 'voice-message.webm');
+                        const ext = voiceToSend.type.includes('mp4') ? 'mp4'
+                            : voiceToSend.type.includes('ogg') ? 'ogg'
+                            : 'webm';
+                        formData.append('voice', voiceToSend, 'voice-message.' + ext);
                         formData.append('voice_duration', voiceSeconds);
                     }
 
@@ -544,12 +604,31 @@ document.addEventListener('alpine:init', function () {
 
                     if (data.user_id !== this.authId) {
                         playChatChime();
+                        this.pushToast(data.sender?.name || 'New message', this.previewText(data));
                         fetch('{{ route('conversations.read', $conversation) }}', {
                             method: 'POST',
                             headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]').content },
                         }).catch(() => {});
                     }
                 }
+            },
+
+            previewText(data) {
+                if (data.body) return data.body;
+                const type = data.attachments?.[0]?.file_type;
+                if (type === 'voice') return '🎤 Voice message';
+                if (type === 'image') return '📷 Photo';
+                if (type === 'video') return '🎬 Video';
+                if (data.attachments && data.attachments.length) return '📎 Attachment';
+                return 'New message';
+            },
+
+            pushToast(sender, text) {
+                const id = ++this.toastSeq;
+                this.toasts.push({ id, sender, text });
+                setTimeout(() => {
+                    this.toasts = this.toasts.filter(t => t.id !== id);
+                }, 5000);
             },
         };
     });

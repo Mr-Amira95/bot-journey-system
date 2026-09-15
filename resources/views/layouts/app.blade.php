@@ -52,12 +52,14 @@ $expActive      = request()->routeIs('expense*');
     $scheduleActive    = request()->routeIs('work-schedules*');
     $attendanceActive  = request()->routeIs('attendance*');
     $activityLogActive = request()->routeIs('activity-logs*');
+    $brdActive         = request()->routeIs('brds*');
     $peopleActive   = $empActive || $cliActive;
     $workActive     = $projActive || $taskActive;
     $commsActive    = $convActive || $callActive;
     $adminActive    = $deptActive || $roleActive || $emailTplActive || $activityLogActive;
     $financeActive  = $payrollActive || $salaryActive || $invoiceActive || $recurActive || $budgetActive || $expActive;
     $hrActive       = $leaveTypeActive || $leaveReqActive || $leaveBalActive || $overtimeActive || $breaksActive || $scheduleActive || $attendanceActive;
+    $docsActive     = $brdActive;
 
     $user = auth()->user();
     $hasPeopleAccess  = $user->hasPermission('view_employees') || $user->hasPermission('view_clients');
@@ -86,6 +88,7 @@ $expActive      = request()->routeIs('expense*');
                       + ($user->hasPermission('view_attendance') ? 1 : 0);
     $adminItemsCount   = ($user->hasPermission('view_departments') ? 1 : 0) + ($user->hasPermission('view_roles') ? 1 : 0)
                       + ($user->hasPermission('view_email_templates') ? 1 : 0) + ($user->hasPermission('view_activity_logs') ? 1 : 0);
+    $docsItemsCount    = ($user->hasPermission('view_brds') ? 1 : 0);
 @endphp
 <body class="bg-stone-50 antialiased font-sans"
       x-data="{
@@ -726,6 +729,32 @@ $expActive      = request()->routeIs('expense*');
                           x-transition:leave="transition-opacity duration-75" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">Attendance</span>
                 </a>
                 @endif
+            @endif
+
+            {{-- ── Documentations ───────────────────────── --}}
+            @if($docsItemsCount >= 1)
+            <div class="mt-2">
+                <div x-show="!sidebarCollapsed"
+                     class="w-full flex items-center px-3 py-1 mb-0.5 rounded-lg text-xs font-semibold uppercase tracking-widest select-none
+                            {{ $docsActive ? 'text-[#E26B3D]' : 'text-white/30' }}">
+                    <span>Documentations</span>
+                </div>
+                <div class="space-y-0.5">
+                    @if(auth()->user()->hasPermission('view_brds'))
+                    <a href="{{ route('brds.index') }}"
+                       class="{{ $navLinkBase }} {{ $brdActive ? $navActive : $navInactive }}"
+                       :class="sidebarCollapsed ? 'justify-center py-2.5' : 'gap-3 py-2.5 pl-7 pr-3'"
+                       :title="sidebarCollapsed ? 'BRDs' : ''">
+                        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        <span class="whitespace-nowrap" x-show="!sidebarCollapsed"
+                              x-transition:enter="transition-opacity duration-150 delay-75" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
+                              x-transition:leave="transition-opacity duration-75" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0">BRDs</span>
+                    </a>
+                    @endif
+                </div>
+            </div>
             @endif
 
             {{-- ── Administration ──────────────────────── --}}

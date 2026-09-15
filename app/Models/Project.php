@@ -74,4 +74,9 @@ class Project extends Model
     {
         return $this->hasMany(Task::class);
     }
+
+    public function brds(): HasMany
+    {
+        return $this->hasMany(Brd::class);
+    }
 }

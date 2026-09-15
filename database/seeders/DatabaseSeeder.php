@@ -62,6 +62,9 @@ class DatabaseSeeder extends Seeder
 
             // 18. Attendance module permissions
             AttendancePermissionsSeeder::class,
+
+            // 19. BRD (Documentations) module permissions
+            BrdPermissionsSeeder::class,
         ]);
     }
 }

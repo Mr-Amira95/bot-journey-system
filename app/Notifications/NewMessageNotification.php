@@ -60,7 +60,7 @@ class NewMessageNotification extends Notification
             ->view('emails.new-message', [
                 'notifiable'   => $notifiable,
                 'conversation' => $this->conversation,
-                'message'      => $this->message,
+                'chatMessage'  => $this->message,
                 'sender'       => $this->sender,
                 'conversationUrl' => route('conversations.show', $this->conversation),
             ]);
