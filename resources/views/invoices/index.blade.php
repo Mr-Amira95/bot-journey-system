@@ -336,8 +336,8 @@
                     <div class="space-y-3">
                         <template x-for="(item, index) in items" :key="index">
                             <div class="flex items-start gap-2">
-                                <div class="flex-1 grid grid-cols-5 gap-2">
-                                    <div class="col-span-3">
+                                <div class="flex-1 grid grid-cols-1 sm:grid-cols-5 gap-2">
+                                    <div class="sm:col-span-3">
                                         <input type="text" :name="'items[' + index + '][description]'"
                                                :value="item.description" @input="item.description = $event.target.value"
                                                placeholder="Description"

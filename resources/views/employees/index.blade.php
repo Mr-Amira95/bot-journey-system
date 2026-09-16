@@ -394,19 +394,19 @@
                     </div>
                     <div class="space-y-2.5">
                         <template x-for="(att, i) in attachments" :key="i">
-                            <div class="grid grid-cols-5 gap-2 items-start p-3 rounded-lg bg-stone-50 border border-slate-200">
-                                <div class="col-span-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-5 gap-2 items-start p-3 rounded-lg bg-stone-50 border border-slate-200">
+                                <div class="sm:col-span-2">
                                     <label class="block text-xs font-mono text-slate-500 mb-1">Label</label>
                                     <input type="text" :name="`attachments[${i}][key]`" x-model="att.key"
                                            placeholder="e.g. Contract"
                                            class="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#E26B3D] font-mono">
                                 </div>
-                                <div class="col-span-2">
+                                <div class="sm:col-span-2">
                                     <label class="block text-xs font-mono text-slate-500 mb-1">File</label>
                                     <input type="file" :name="`attachments[${i}][file]`"
                                            class="w-full rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-700 file:mr-1.5 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-[#E26B3D]/10 file:text-[#E26B3D] hover:file:bg-[#E26B3D]/20 focus:outline-none font-mono">
                                 </div>
-                                <div class="pt-5">
+                                <div class="sm:pt-5">
                                     <button type="button" @click="removeAttachment(i)"
                                             class="w-full flex items-center justify-center p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

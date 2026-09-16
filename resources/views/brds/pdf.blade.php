@@ -19,6 +19,11 @@
   .badge-approved { background: #dcfce7; color: #166534; }
   .badge-pending { background: #fef3c7; color: #92400e; }
   .badge-rejected { background: #fee2e2; color: #991b1b; }
+  table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  table.data-table th { background: #0f1b3d; color: #fff; padding: 6px 8px; text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; }
+  table.data-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; font-size: 11px; }
+  table.data-table tr:nth-child(even) td { background: #f8fafc; }
+  .subsection-title { font-size: 11px; font-weight: bold; color: #334155; margin: 10px 0 4px; }
   .footer { margin-top: 20px; font-size: 10px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 10px; }
 </style>
 </head>
@@ -32,6 +37,7 @@
 
 <div class="meta">
   <div class="meta-item"><label>Project</label><span>{{ $brd->project?->name ?? '—' }}</span></div>
+  <div class="meta-item"><label>Department</label><span>{{ $brd->department?->name ?? '—' }}</span></div>
   <div class="meta-item"><label>Priority</label><span>{{ ucfirst($brd->priority->value ?? $brd->priority) }}</span></div>
   <div class="meta-item"><label>Status</label><span class="badge badge-{{ $brd->status->value ?? $brd->status }}">{{ ucfirst($brd->status->value ?? $brd->status) }}</span></div>
   <div class="meta-item"><label>Created By</label><span>{{ $brd->creator?->name ?? '—' }}</span></div>
@@ -55,9 +61,54 @@
 <p class="section-text">{{ $brd->scope }}</p>
 @endif
 
-@if($brd->stakeholders)
+@if($brd->stakeholders->isNotEmpty())
 <div class="section-title">Stakeholders</div>
-<p class="section-text">{{ $brd->stakeholders }}</p>
+<table class="data-table">
+  <thead><tr><th>Name</th><th>Role</th><th>Department</th><th>Responsibility</th></tr></thead>
+  <tbody>
+    @foreach($brd->stakeholders as $sh)
+    <tr>
+      <td>{{ $sh->name }}</td>
+      <td>{{ $sh->role ?? '—' }}</td>
+      <td>{{ $sh->department ?? '—' }}</td>
+      <td>{{ $sh->responsibility ?? '—' }}</td>
+    </tr>
+    @endforeach
+  </tbody>
+</table>
+@endif
+
+@if($brd->as_is_workflow || $brd->as_is_pain_points || $brd->as_is_existing_systems)
+<div class="section-title">Current Process ("As-Is")</div>
+@if($brd->as_is_workflow)
+<div class="subsection-title">Workflow</div>
+<p class="section-text">{{ $brd->as_is_workflow }}</p>
+@endif
+@if($brd->as_is_pain_points)
+<div class="subsection-title">Pain Points</div>
+<p class="section-text">{{ $brd->as_is_pain_points }}</p>
+@endif
+@if($brd->as_is_existing_systems)
+<div class="subsection-title">Existing Systems / Tools</div>
+<p class="section-text">{{ $brd->as_is_existing_systems }}</p>
+@endif
+@endif
+
+@if($brd->to_be_workflow || $brd->to_be_benefits)
+<div class="section-title">Proposed Process ("To-Be")</div>
+@if($brd->to_be_workflow)
+<div class="subsection-title">Workflow</div>
+<p class="section-text">{{ $brd->to_be_workflow }}</p>
+@endif
+@if($brd->to_be_benefits)
+<div class="subsection-title">Benefits</div>
+<p class="section-text">{{ $brd->to_be_benefits }}</p>
+@endif
+@endif
+
+@if($brd->kpis)
+<div class="section-title">KPIs</div>
+<p class="section-text">{{ $brd->kpis }}</p>
 @endif
 
 @if($brd->status->value === 'rejected' && $brd->rejection_reason)

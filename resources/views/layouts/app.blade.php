@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,600;1,400;1,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     <style>
-        @media (min-width: 1024px) {
+        @media (min-width: 1280px) {
             .sidebar-expanded { width: 16rem !important; }
             .sidebar-collapsed { width: 4rem !important; }
             .header-expanded { left: 16rem !important; }
@@ -21,10 +21,16 @@
             .desktop-toggle { display: flex !important; }
             .mobile-toggle { display: none !important; }
         }
-        @media (max-width: 1023px) {
+        @media (max-width: 1279px) {
             .desktop-toggle { display: none !important; }
             .mobile-toggle { display: block !important; }
         }
+        .header-actions-scroll {
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            -webkit-overflow-scrolling: touch;
+        }
+        .header-actions-scroll::-webkit-scrollbar { display: none; }
     </style>
 </head>
 @php
@@ -106,12 +112,12 @@ $expActive      = request()->routeIs('expense*');
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
          @click="sidebarOpen = false"
-         class="fixed inset-0 bg-[#0f1b3d]/80 z-20 lg:hidden"></div>
+         class="fixed inset-0 bg-[#0f1b3d]/80 z-20 xl:hidden"></div>
 
     {{-- Sidebar --}}
     <aside class="fixed inset-y-0 left-0 z-30 bg-[#0f1b3d] flex flex-col overflow-hidden
                   transition-all duration-200 ease-in-out
-                  -translate-x-full lg:translate-x-0 w-64"
+                  -translate-x-full xl:translate-x-0 w-64"
            :class="{
                'translate-x-0': sidebarOpen,
                'sidebar-collapsed': sidebarCollapsed,
@@ -934,7 +940,7 @@ $expActive      = request()->routeIs('expense*');
     </aside>
 
     {{-- Top header --}}
-    <header class="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 z-10 flex items-center px-4 lg:px-6 gap-4 transition-all duration-200 ease-in-out lg:left-64"
+    <header class="fixed top-0 right-0 left-0 h-16 bg-white border-b border-slate-200 z-10 flex items-center px-4 xl:px-6 gap-2 sm:gap-4 transition-all duration-200 ease-in-out xl:left-64"
             :class="{
                 'header-collapsed': sidebarCollapsed,
                 'header-expanded': !sidebarCollapsed,
@@ -955,9 +961,9 @@ $expActive      = request()->routeIs('expense*');
             </svg>
         </button>
 
-        <h1 class="text-lg font-semibold text-slate-800 flex-1">@yield('page-title', 'Dashboard')</h1>
+        <h1 class="text-lg font-semibold text-slate-800 flex-1 min-w-0 truncate">@yield('page-title', 'Dashboard')</h1>
 
-        <div class="flex items-center gap-3">
+        <div class="header-actions-scroll flex items-center gap-2 sm:gap-3 shrink min-w-0 overflow-x-auto flex-nowrap [&>*]:shrink-0">
 
             {{-- Whiteboard icon --}}
             @if(auth()->user()->hasPermission('view_whiteboards'))
@@ -1101,7 +1107,7 @@ $expActive      = request()->routeIs('expense*');
     </header>
 
     {{-- Main content --}}
-    <main class="pt-16 min-h-screen transition-all duration-200 ease-in-out lg:ml-64"
+    <main class="pt-16 min-h-screen transition-all duration-200 ease-in-out xl:ml-64"
           :class="{
               'main-collapsed': sidebarCollapsed,
               'main-expanded': !sidebarCollapsed,

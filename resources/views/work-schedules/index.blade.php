@@ -194,7 +194,7 @@
 
                 <div>
                     <h3 class="text-xs font-mono font-semibold text-slate-400 uppercase tracking-widest mb-4">Working Days <span class="text-red-500">*</span></h3>
-                    <div class="grid grid-cols-4 gap-2">
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2">
                         @foreach(['Mon','Tue','Wed','Thu','Fri','Sat','Sun'] as $day)
                         <label class="flex flex-col items-center gap-1.5 cursor-pointer group">
                             <input type="checkbox" name="working_days[]" value="{{ $day }}"

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\BrdPriority;
 use App\Enums\BrdStatus;
 use App\Models\Brd;
+use App\Models\Department;
 use App\Models\Project;
 use App\Notifications\BrdStatusNotification;
 use Illuminate\Http\Request;
@@ -16,14 +17,32 @@ class BrdController extends Controller
     private function validationRules(): array
     {
         return [
-            'project_id'   => ['required', 'exists:projects,id'],
-            'title'        => ['required', 'string', 'max:255'],
-            'description'  => ['required', 'string'],
-            'objective'    => ['nullable', 'string'],
-            'scope'        => ['nullable', 'string'],
-            'stakeholders' => ['nullable', 'string'],
-            'priority'     => ['required', Rule::enum(BrdPriority::class)],
+            'project_id'              => ['required', 'exists:projects,id'],
+            'department_id'           => ['nullable', 'exists:departments,id'],
+            'title'                   => ['required', 'string', 'max:255'],
+            'description'             => ['required', 'string'],
+            'objective'               => ['nullable', 'string'],
+            'scope'                   => ['nullable', 'string'],
+            'as_is_workflow'          => ['nullable', 'string'],
+            'as_is_pain_points'       => ['nullable', 'string'],
+            'as_is_existing_systems'  => ['nullable', 'string'],
+            'to_be_workflow'          => ['nullable', 'string'],
+            'to_be_benefits'          => ['nullable', 'string'],
+            'kpis'                    => ['nullable', 'string'],
+            'priority'                => ['required', Rule::enum(BrdPriority::class)],
+            'stakeholders'                  => ['nullable', 'array'],
+            'stakeholders.*.name'           => ['nullable', 'string', 'max:255'],
+            'stakeholders.*.role'           => ['nullable', 'string', 'max:255'],
+            'stakeholders.*.department'     => ['nullable', 'string', 'max:255'],
+            'stakeholders.*.responsibility' => ['nullable', 'string'],
         ];
+    }
+
+    private function stakeholderRows(array $data): \Illuminate\Support\Collection
+    {
+        return collect($data['stakeholders'] ?? [])
+            ->filter(fn ($row) => trim($row['name'] ?? '') !== '')
+            ->values();
     }
 
     public function index(Request $request)
@@ -32,7 +51,7 @@ class BrdController extends Controller
         $canViewAll = auth()->user()->hasPermission('view_all_brds');
         $tab        = ($canViewAll && $request->get('tab') === 'all') ? 'all' : 'mine';
 
-        $query = Brd::with(['project', 'creator', 'approver']);
+        $query = Brd::with(['project', 'department', 'creator', 'approver', 'stakeholders']);
 
         if ($tab === 'mine') {
             $query->where('created_by', auth()->id());
@@ -45,9 +64,10 @@ class BrdController extends Controller
             $query->where('project_id', $request->project_id);
         }
 
-        $brds     = $query->latest()->paginate(15)->withQueryString();
-        $projects = Project::orderBy('name')->get();
-        $statuses = BrdStatus::cases();
+        $brds       = $query->latest()->paginate(15)->withQueryString();
+        $projects   = Project::orderBy('name')->get();
+        $departments = Department::orderBy('name')->get();
+        $statuses   = BrdStatus::cases();
         $priorities = BrdPriority::cases();
         $canApprove = auth()->user()->hasPermission('approve_brds');
         $canEditBrd = auth()->user()->hasPermission('edit_brds');
@@ -55,14 +75,14 @@ class BrdController extends Controller
 
         $editBrd = null;
         if ($canEditBrd && $request->filled('edit')) {
-            $editBrd = Brd::find($request->get('edit'));
+            $editBrd = Brd::with('stakeholders')->find($request->get('edit'));
             if ($editBrd && $tab === 'mine' && $editBrd->created_by !== auth()->id()) {
                 $editBrd = null;
             }
         }
 
         return view('brds.index', compact(
-            'brds', 'projects', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canExport', 'editBrd'
+            'brds', 'projects', 'departments', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canExport', 'editBrd'
         ));
     }
 
@@ -72,7 +92,7 @@ class BrdController extends Controller
         $canViewAll = auth()->user()->hasPermission('view_all_brds');
         abort_unless($canViewAll || $brd->created_by === auth()->id(), 403);
 
-        $brd->load(['project', 'creator', 'updater', 'approver', 'tasks']);
+        $brd->load(['project', 'department', 'creator', 'updater', 'approver', 'tasks', 'stakeholders']);
 
         $canApprove = auth()->user()->hasPermission('approve_brds');
         $canEditBrd = auth()->user()->hasPermission('edit_brds');
@@ -87,10 +107,17 @@ class BrdController extends Controller
         abort_unless(auth()->user()->hasPermission('create_brds'), 403);
         $data = $request->validate($this->validationRules());
 
-        Brd::create(array_merge($data, [
+        $stakeholders = $this->stakeholderRows($data);
+        unset($data['stakeholders']);
+
+        $brd = Brd::create(array_merge($data, [
             'created_by' => auth()->id(),
             'status'     => BrdStatus::Pending->value,
         ]));
+
+        foreach ($stakeholders as $row) {
+            $brd->stakeholders()->create($row);
+        }
 
         return back()->with('success', 'BRD created and submitted for approval.');
     }
@@ -102,6 +129,9 @@ class BrdController extends Controller
 
         $data = $request->validate($this->validationRules());
 
+        $stakeholders = $this->stakeholderRows($data);
+        unset($data['stakeholders']);
+
         $brd->update(array_merge($data, [
             'updated_by'        => auth()->id(),
             'status'            => BrdStatus::Pending->value,
@@ -109,6 +139,11 @@ class BrdController extends Controller
             'approved_at'       => null,
             'rejection_reason'  => null,
         ]));
+
+        $brd->stakeholders()->delete();
+        foreach ($stakeholders as $row) {
+            $brd->stakeholders()->create($row);
+        }
 
         return back()->with('success', 'BRD updated and resubmitted for approval.');
     }
@@ -163,7 +198,7 @@ class BrdController extends Controller
     public function export(Brd $brd)
     {
         abort_unless(auth()->user()->hasPermission('export_brds'), 403);
-        $brd->load(['project', 'creator', 'approver']);
+        $brd->load(['project', 'department', 'creator', 'approver', 'stakeholders']);
 
         $tempDir = storage_path('app/mpdf-temp');
         if (! is_dir($tempDir)) {

@@ -68,6 +68,9 @@
         </div>
         <p class="text-sm text-slate-500 mb-6">
             in <a href="{{ route('projects.show', $brd->project) }}" class="hover:text-[#E26B3D] transition-colors">{{ $brd->project?->name }}</a>
+            @if($brd->department)
+                <span class="text-slate-300">·</span> {{ $brd->department->name }}
+            @endif
         </p>
 
         <div class="mb-6">
@@ -89,10 +92,84 @@
         </div>
         @endif
 
-        @if($brd->stakeholders)
+        @if($brd->stakeholders->isNotEmpty())
         <div class="mb-6">
             <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Stakeholders</h2>
-            <p class="text-sm text-slate-700 whitespace-pre-line">{{ $brd->stakeholders }}</p>
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+                <table class="w-full text-sm">
+                    <thead class="bg-stone-50 border-b border-slate-200">
+                        <tr>
+                            <th class="text-left px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+                            <th class="text-left px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Role</th>
+                            <th class="text-left px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Department</th>
+                            <th class="text-left px-3 py-2 text-xs font-medium text-slate-500 uppercase tracking-wider">Responsibility</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        @foreach($brd->stakeholders as $sh)
+                        <tr>
+                            <td class="px-3 py-2 font-medium text-slate-800">{{ $sh->name }}</td>
+                            <td class="px-3 py-2 text-slate-700">{{ $sh->role ?? '—' }}</td>
+                            <td class="px-3 py-2 text-slate-700">{{ $sh->department ?? '—' }}</td>
+                            <td class="px-3 py-2 text-slate-700">{{ $sh->responsibility ?? '—' }}</td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        @endif
+
+        @if($brd->as_is_workflow || $brd->as_is_pain_points || $brd->as_is_existing_systems)
+        <div class="mb-6">
+            <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Current Process ("As-Is")</h2>
+            <div class="space-y-3">
+                @if($brd->as_is_workflow)
+                <div>
+                    <p class="text-xs font-medium text-slate-500 mb-1">Workflow</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-line">{{ $brd->as_is_workflow }}</p>
+                </div>
+                @endif
+                @if($brd->as_is_pain_points)
+                <div>
+                    <p class="text-xs font-medium text-slate-500 mb-1">Pain Points</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-line">{{ $brd->as_is_pain_points }}</p>
+                </div>
+                @endif
+                @if($brd->as_is_existing_systems)
+                <div>
+                    <p class="text-xs font-medium text-slate-500 mb-1">Existing Systems / Tools</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-line">{{ $brd->as_is_existing_systems }}</p>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
+        @if($brd->to_be_workflow || $brd->to_be_benefits)
+        <div class="mb-6">
+            <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Proposed Process ("To-Be")</h2>
+            <div class="space-y-3">
+                @if($brd->to_be_workflow)
+                <div>
+                    <p class="text-xs font-medium text-slate-500 mb-1">Workflow</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-line">{{ $brd->to_be_workflow }}</p>
+                </div>
+                @endif
+                @if($brd->to_be_benefits)
+                <div>
+                    <p class="text-xs font-medium text-slate-500 mb-1">Benefits</p>
+                    <p class="text-sm text-slate-700 whitespace-pre-line">{{ $brd->to_be_benefits }}</p>
+                </div>
+                @endif
+            </div>
+        </div>
+        @endif
+
+        @if($brd->kpis)
+        <div class="mb-6">
+            <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">KPIs</h2>
+            <p class="text-sm text-slate-700 whitespace-pre-line">{{ $brd->kpis }}</p>
         </div>
         @endif
 

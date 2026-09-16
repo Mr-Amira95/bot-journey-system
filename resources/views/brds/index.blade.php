@@ -29,29 +29,55 @@
 </div>
 @endif
 
+@php
+    $defaultStakeholders = old('stakeholders', $editBrd
+        ? $editBrd->stakeholders->map(fn ($s) => [
+            'name' => $s->name, 'role' => $s->role, 'department' => $s->department, 'responsibility' => $s->responsibility,
+        ])->values()->all()
+        : []);
+    if (empty($defaultStakeholders)) {
+        $defaultStakeholders = [['name' => '', 'role' => '', 'department' => '', 'responsibility' => '']];
+    }
+@endphp
 <div x-data="{
     open: {{ $errors->any() || $editBrd ? 'true' : 'false' }},
     mode: '{{ old('_mode', $editBrd ? 'edit' : 'create') }}',
     recordId: {{ $editBrd ? $editBrd->id : old('record_id', 'null') }},
     submitted: false,
+    stakeholders: {{ json_encode($defaultStakeholders) }},
     formData: {
-        project_id:   '{{ old('project_id', $editBrd->project_id ?? '') }}',
-        title:        {{ json_encode(old('title', $editBrd->title ?? '')) }},
-        description:  {{ json_encode(old('description', $editBrd->description ?? '')) }},
-        objective:    {{ json_encode(old('objective', $editBrd->objective ?? '')) }},
-        scope:        {{ json_encode(old('scope', $editBrd->scope ?? '')) }},
-        stakeholders: {{ json_encode(old('stakeholders', $editBrd->stakeholders ?? '')) }},
-        priority:     '{{ old('priority', $editBrd->priority->value ?? 'medium') }}'
+        project_id:              '{{ old('project_id', $editBrd->project_id ?? '') }}',
+        department_id:           '{{ old('department_id', $editBrd->department_id ?? '') }}',
+        title:                   {{ json_encode(old('title', $editBrd->title ?? '')) }},
+        description:             {{ json_encode(old('description', $editBrd->description ?? '')) }},
+        objective:               {{ json_encode(old('objective', $editBrd->objective ?? '')) }},
+        scope:                   {{ json_encode(old('scope', $editBrd->scope ?? '')) }},
+        as_is_workflow:          {{ json_encode(old('as_is_workflow', $editBrd->as_is_workflow ?? '')) }},
+        as_is_pain_points:       {{ json_encode(old('as_is_pain_points', $editBrd->as_is_pain_points ?? '')) }},
+        as_is_existing_systems:  {{ json_encode(old('as_is_existing_systems', $editBrd->as_is_existing_systems ?? '')) }},
+        to_be_workflow:          {{ json_encode(old('to_be_workflow', $editBrd->to_be_workflow ?? '')) }},
+        to_be_benefits:          {{ json_encode(old('to_be_benefits', $editBrd->to_be_benefits ?? '')) }},
+        kpis:                    {{ json_encode(old('kpis', $editBrd->kpis ?? '')) }},
+        priority:                '{{ old('priority', $editBrd->priority->value ?? 'medium') }}'
     },
     openCreate() {
         this.mode = 'create'; this.recordId = null; this.submitted = false;
-        this.formData = { project_id: '', title: '', description: '', objective: '', scope: '', stakeholders: '', priority: 'medium' };
+        this.formData = {
+            project_id: '', department_id: '', title: '', description: '', objective: '', scope: '',
+            as_is_workflow: '', as_is_pain_points: '', as_is_existing_systems: '',
+            to_be_workflow: '', to_be_benefits: '', kpis: '', priority: 'medium'
+        };
+        this.stakeholders = [{ name: '', role: '', department: '', responsibility: '' }];
         this.open = true;
     },
     openEdit(data) {
         this.mode = 'edit'; this.recordId = data.id; this.submitted = false;
-        this.formData = data; this.open = true;
+        this.formData = data;
+        this.stakeholders = (data.stakeholders && data.stakeholders.length) ? data.stakeholders : [{ name: '', role: '', department: '', responsibility: '' }];
+        this.open = true;
     },
+    addStakeholder() { this.stakeholders.push({ name: '', role: '', department: '', responsibility: '' }); },
+    removeStakeholder(i) { this.stakeholders.splice(i, 1); },
     close() { this.open = false; this.submitted = false; }
 }" @panel:create.window="openCreate()">
 
@@ -159,15 +185,27 @@
                                 </a>
                                 @endif
                                 @if($canEditBrd && $brd->status->value !== 'approved')
+                                @php
+                                    $brdStakeholdersJson = $brd->stakeholders->map(fn ($s) => [
+                                        'name' => $s->name, 'role' => $s->role, 'department' => $s->department, 'responsibility' => $s->responsibility,
+                                    ])->values();
+                                @endphp
                                 <button @click="openEdit({
-                                            id:            {{ $brd->id }},
-                                            project_id:    '{{ $brd->project_id }}',
-                                            title:         `{{ e($brd->title) }}`,
-                                            description:   `{{ e($brd->description) }}`,
-                                            objective:     `{{ e($brd->objective ?? '') }}`,
-                                            scope:         `{{ e($brd->scope ?? '') }}`,
-                                            stakeholders:  `{{ e($brd->stakeholders ?? '') }}`,
-                                            priority:      '{{ $brd->priority->value }}'
+                                            id:                     {{ $brd->id }},
+                                            project_id:             '{{ $brd->project_id }}',
+                                            department_id:          '{{ $brd->department_id }}',
+                                            title:                  `{{ e($brd->title) }}`,
+                                            description:            `{{ e($brd->description) }}`,
+                                            objective:              `{{ e($brd->objective ?? '') }}`,
+                                            scope:                  `{{ e($brd->scope ?? '') }}`,
+                                            as_is_workflow:         `{{ e($brd->as_is_workflow ?? '') }}`,
+                                            as_is_pain_points:      `{{ e($brd->as_is_pain_points ?? '') }}`,
+                                            as_is_existing_systems: `{{ e($brd->as_is_existing_systems ?? '') }}`,
+                                            to_be_workflow:         `{{ e($brd->to_be_workflow ?? '') }}`,
+                                            to_be_benefits:         `{{ e($brd->to_be_benefits ?? '') }}`,
+                                            kpis:                   `{{ e($brd->kpis ?? '') }}`,
+                                            priority:               '{{ $brd->priority->value }}',
+                                            stakeholders:           {{ json_encode($brdStakeholdersJson) }}
                                         })"
                                         class="p-1.5 rounded-lg text-slate-400 hover:text-[#E26B3D] hover:bg-[#E26B3D]/10 transition-colors" title="Edit">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -254,6 +292,18 @@
                     </select>
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Department <span class="text-slate-400 font-normal">(optional)</span></label>
+                    <select name="department_id"
+                            x-effect="$el.value = formData.department_id"
+                            @change="formData.department_id = $event.target.value"
+                            class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 bg-white transition-colors">
+                        <option value="">Select department...</option>
+                        @foreach($departments as $dept)
+                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1.5">Title <span class="text-red-500">*</span></label>
                     <input type="text" name="title" :value="formData.title"
                            x-effect="$el.value = formData.title"
@@ -298,10 +348,100 @@
                               class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Stakeholders <span class="text-slate-400 font-normal">(optional)</span></label>
-                    <textarea name="stakeholders" rows="2"
-                              x-effect="$el.value = formData.stakeholders"
-                              placeholder="Who is involved or affected..."
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label class="block text-xs font-medium text-slate-600">Stakeholders <span class="text-slate-400 font-normal">(optional)</span></label>
+                        <button type="button" @click="addStakeholder()"
+                                class="inline-flex items-center gap-1 text-xs font-mono text-[#E26B3D] hover:text-[#c8602a] transition-colors">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Stakeholder
+                        </button>
+                    </div>
+                    <div class="space-y-2">
+                        <template x-for="(sh, index) in stakeholders" :key="index">
+                            <div class="flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-stone-50">
+                                <div class="flex-1 grid grid-cols-2 gap-2">
+                                    <input type="text" :name="'stakeholders[' + index + '][name]'"
+                                           :value="sh.name" @input="sh.name = $event.target.value"
+                                           placeholder="Name"
+                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
+                                    <input type="text" :name="'stakeholders[' + index + '][role]'"
+                                           :value="sh.role" @input="sh.role = $event.target.value"
+                                           placeholder="Role"
+                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
+                                    <input type="text" :name="'stakeholders[' + index + '][department]'"
+                                           :value="sh.department" @input="sh.department = $event.target.value"
+                                           placeholder="Department"
+                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
+                                    <input type="text" :name="'stakeholders[' + index + '][responsibility]'"
+                                           :value="sh.responsibility" @input="sh.responsibility = $event.target.value"
+                                           placeholder="Responsibility"
+                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
+                                </div>
+                                <button type="button" @click="removeStakeholder(index)" x-show="stakeholders.length > 1"
+                                        class="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <fieldset class="border-t border-slate-100 pt-5">
+                    <legend class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Current Process ("As-Is")</legend>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Workflow <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea name="as_is_workflow" rows="3"
+                                      x-effect="$el.value = formData.as_is_workflow"
+                                      placeholder="How is this done today..."
+                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Pain Points <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea name="as_is_pain_points" rows="3"
+                                      x-effect="$el.value = formData.as_is_pain_points"
+                                      placeholder="What's wrong with the current process..."
+                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Existing Systems / Tools <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea name="as_is_existing_systems" rows="2"
+                                      x-effect="$el.value = formData.as_is_existing_systems"
+                                      placeholder="Systems or tools currently in use..."
+                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <fieldset class="border-t border-slate-100 pt-5">
+                    <legend class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Proposed Process ("To-Be")</legend>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Workflow <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea name="to_be_workflow" rows="3"
+                                      x-effect="$el.value = formData.to_be_workflow"
+                                      placeholder="How the process should work..."
+                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Benefits <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea name="to_be_benefits" rows="3"
+                                      x-effect="$el.value = formData.to_be_benefits"
+                                      placeholder="What improves once this is in place..."
+                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="border-t border-slate-100 pt-5">
+                    <label class="block text-xs font-medium text-slate-600 mb-1.5">KPIs <span class="text-slate-400 font-normal">(optional)</span></label>
+                    <textarea name="kpis" rows="3"
+                              x-effect="$el.value = formData.kpis"
+                              placeholder="How success will be measured..."
                               class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
                 </div>
             </div>

@@ -4,7 +4,7 @@
 @section('page-title', 'Employee Profile')
 
 @section('header-actions')
-    <div class="flex items-center gap-3 flex-wrap">
+    <div class="flex items-center gap-3">
         <a href="{{ route('employees.index') }}"
            class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-mono font-medium text-slate-700 hover:bg-stone-50 transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -16,11 +16,17 @@ class Brd extends Model
 
     protected $fillable = [
         'project_id',
+        'department_id',
         'title',
         'description',
         'objective',
         'scope',
-        'stakeholders',
+        'as_is_workflow',
+        'as_is_pain_points',
+        'as_is_existing_systems',
+        'to_be_workflow',
+        'to_be_benefits',
+        'kpis',
         'priority',
         'status',
         'created_by',
@@ -44,6 +50,11 @@ class Brd extends Model
         return $this->belongsTo(Project::class);
     }
 
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -62,5 +73,10 @@ class Brd extends Model
     public function tasks(): HasMany
     {
         return $this->hasMany(Task::class);
+    }
+
+    public function stakeholders(): HasMany
+    {
+        return $this->hasMany(BrdStakeholder::class);
     }
 }
