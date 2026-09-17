@@ -47,7 +47,7 @@
     stakeholders: {{ json_encode($defaultStakeholders) }},
     formData: {
         project_id:              '{{ old('project_id', $editBrd->project_id ?? '') }}',
-        department_id:           '{{ old('department_id', $editBrd->department_id ?? '') }}',
+        department:              {{ json_encode(old('department', $editBrd->department ?? '')) }},
         title:                   {{ json_encode(old('title', $editBrd->title ?? '')) }},
         description:             {{ json_encode(old('description', $editBrd->description ?? '')) }},
         objective:               {{ json_encode(old('objective', $editBrd->objective ?? '')) }},
@@ -63,7 +63,7 @@
     openCreate() {
         this.mode = 'create'; this.recordId = null; this.submitted = false;
         this.formData = {
-            project_id: '', department_id: '', title: '', description: '', objective: '', scope: '',
+            project_id: '', department: '', title: '', description: '', objective: '', scope: '',
             as_is_workflow: '', as_is_pain_points: '', as_is_existing_systems: '',
             to_be_workflow: '', to_be_benefits: '', kpis: '', priority: 'medium'
         };
@@ -193,7 +193,7 @@
                                 <button @click="openEdit({
                                             id:                     {{ $brd->id }},
                                             project_id:             '{{ $brd->project_id }}',
-                                            department_id:          '{{ $brd->department_id }}',
+                                            department:             `{{ e($brd->department ?? '') }}`,
                                             title:                  `{{ e($brd->title) }}`,
                                             description:            `{{ e($brd->description) }}`,
                                             objective:              `{{ e($brd->objective ?? '') }}`,
@@ -293,15 +293,11 @@
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1.5">Department <span class="text-slate-400 font-normal">(optional)</span></label>
-                    <select name="department_id"
-                            x-effect="$el.value = formData.department_id"
-                            @change="formData.department_id = $event.target.value"
-                            class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 bg-white transition-colors">
-                        <option value="">Select department...</option>
-                        @foreach($departments as $dept)
-                            <option value="{{ $dept->id }}">{{ $dept->name }}</option>
-                        @endforeach
-                    </select>
+                    <input type="text" name="department" :value="formData.department"
+                           x-effect="$el.value = formData.department"
+                           @input="formData.department = $event.target.value"
+                           placeholder="Enter department"
+                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 bg-white transition-colors">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1.5">Title <span class="text-red-500">*</span></label>

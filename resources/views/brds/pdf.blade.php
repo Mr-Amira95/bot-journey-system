@@ -37,7 +37,7 @@
 
 <div class="meta">
   <div class="meta-item"><label>Project</label><span>{{ $brd->project?->name ?? '—' }}</span></div>
-  <div class="meta-item"><label>Department</label><span>{{ $brd->department?->name ?? '—' }}</span></div>
+  <div class="meta-item"><label>Department</label><span>{{ $brd->department ?? '—' }}</span></div>
   <div class="meta-item"><label>Priority</label><span>{{ ucfirst($brd->priority->value ?? $brd->priority) }}</span></div>
   <div class="meta-item"><label>Status</label><span class="badge badge-{{ $brd->status->value ?? $brd->status }}">{{ ucfirst($brd->status->value ?? $brd->status) }}</span></div>
   <div class="meta-item"><label>Created By</label><span>{{ $brd->creator?->name ?? '—' }}</span></div>

@@ -16,7 +16,7 @@ class Brd extends Model
 
     protected $fillable = [
         'project_id',
-        'department_id',
+        'department',
         'title',
         'description',
         'objective',
@@ -48,11 +48,6 @@ class Brd extends Model
     public function project(): BelongsTo
     {
         return $this->belongsTo(Project::class);
-    }
-
-    public function department(): BelongsTo
-    {
-        return $this->belongsTo(Department::class);
     }
 
     public function creator(): BelongsTo

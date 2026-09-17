@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\BrdPriority;
 use App\Enums\BrdStatus;
 use App\Models\Brd;
-use App\Models\Department;
 use App\Models\Project;
 use App\Notifications\BrdStatusNotification;
 use Illuminate\Http\Request;
@@ -18,7 +17,7 @@ class BrdController extends Controller
     {
         return [
             'project_id'              => ['required', 'exists:projects,id'],
-            'department_id'           => ['nullable', 'exists:departments,id'],
+            'department'              => ['nullable', 'string', 'max:255'],
             'title'                   => ['required', 'string', 'max:255'],
             'description'             => ['required', 'string'],
             'objective'               => ['nullable', 'string'],
@@ -51,7 +50,7 @@ class BrdController extends Controller
         $canViewAll = auth()->user()->hasPermission('view_all_brds');
         $tab        = ($canViewAll && $request->get('tab') === 'all') ? 'all' : 'mine';
 
-        $query = Brd::with(['project', 'department', 'creator', 'approver', 'stakeholders']);
+        $query = Brd::with(['project', 'creator', 'approver', 'stakeholders']);
 
         if ($tab === 'mine') {
             $query->where('created_by', auth()->id());
@@ -66,7 +65,6 @@ class BrdController extends Controller
 
         $brds       = $query->latest()->paginate(15)->withQueryString();
         $projects   = Project::orderBy('name')->get();
-        $departments = Department::orderBy('name')->get();
         $statuses   = BrdStatus::cases();
         $priorities = BrdPriority::cases();
         $canApprove = auth()->user()->hasPermission('approve_brds');
@@ -82,7 +80,7 @@ class BrdController extends Controller
         }
 
         return view('brds.index', compact(
-            'brds', 'projects', 'departments', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canExport', 'editBrd'
+            'brds', 'projects', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canExport', 'editBrd'
         ));
     }
 
@@ -92,7 +90,7 @@ class BrdController extends Controller
         $canViewAll = auth()->user()->hasPermission('view_all_brds');
         abort_unless($canViewAll || $brd->created_by === auth()->id(), 403);
 
-        $brd->load(['project', 'department', 'creator', 'updater', 'approver', 'tasks', 'stakeholders']);
+        $brd->load(['project', 'creator', 'updater', 'approver', 'tasks', 'stakeholders']);
 
         $canApprove = auth()->user()->hasPermission('approve_brds');
         $canEditBrd = auth()->user()->hasPermission('edit_brds');
@@ -198,7 +196,7 @@ class BrdController extends Controller
     public function export(Brd $brd)
     {
         abort_unless(auth()->user()->hasPermission('export_brds'), 403);
-        $brd->load(['project', 'department', 'creator', 'approver', 'stakeholders']);
+        $brd->load(['project', 'creator', 'approver', 'stakeholders']);
 
         $tempDir = storage_path('app/mpdf-temp');
         if (! is_dir($tempDir)) {
