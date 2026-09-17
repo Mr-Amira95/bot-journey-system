@@ -17,6 +17,7 @@ class Brd extends Model
     protected $fillable = [
         'project_id',
         'department',
+        'direct_manager',
         'title',
         'description',
         'objective',
@@ -73,5 +74,10 @@ class Brd extends Model
     public function stakeholders(): HasMany
     {
         return $this->hasMany(BrdStakeholder::class);
+    }
+
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(BrdAttachment::class);
     }
 }

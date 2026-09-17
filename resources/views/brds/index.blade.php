@@ -5,13 +5,13 @@
 
 @section('header-actions')
     @if(auth()->user()->hasPermission('create_brds'))
-    <button @click="$dispatch('panel:create')"
-            class="inline-flex items-center gap-2 rounded-lg bg-[#E26B3D] px-4 py-2 text-sm font-mono font-medium text-white hover:bg-[#c8602a] transition-colors">
+    <a href="{{ route('brds.create') }}"
+       class="inline-flex items-center gap-2 rounded-lg bg-[#E26B3D] px-4 py-2 text-sm font-mono font-medium text-white hover:bg-[#c8602a] transition-colors">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
         </svg>
         New BRD
-    </button>
+    </a>
     @endif
 @endsection
 
@@ -29,58 +29,7 @@
 </div>
 @endif
 
-@php
-    $defaultStakeholders = old('stakeholders', $editBrd
-        ? $editBrd->stakeholders->map(fn ($s) => [
-            'name' => $s->name, 'role' => $s->role, 'department' => $s->department, 'responsibility' => $s->responsibility,
-        ])->values()->all()
-        : []);
-    if (empty($defaultStakeholders)) {
-        $defaultStakeholders = [['name' => '', 'role' => '', 'department' => '', 'responsibility' => '']];
-    }
-@endphp
-<div x-data="{
-    open: {{ $errors->any() || $editBrd ? 'true' : 'false' }},
-    mode: '{{ old('_mode', $editBrd ? 'edit' : 'create') }}',
-    recordId: {{ $editBrd ? $editBrd->id : old('record_id', 'null') }},
-    submitted: false,
-    stakeholders: {{ json_encode($defaultStakeholders) }},
-    formData: {
-        project_id:              '{{ old('project_id', $editBrd->project_id ?? '') }}',
-        department:              {{ json_encode(old('department', $editBrd->department ?? '')) }},
-        title:                   {{ json_encode(old('title', $editBrd->title ?? '')) }},
-        description:             {{ json_encode(old('description', $editBrd->description ?? '')) }},
-        objective:               {{ json_encode(old('objective', $editBrd->objective ?? '')) }},
-        scope:                   {{ json_encode(old('scope', $editBrd->scope ?? '')) }},
-        as_is_workflow:          {{ json_encode(old('as_is_workflow', $editBrd->as_is_workflow ?? '')) }},
-        as_is_pain_points:       {{ json_encode(old('as_is_pain_points', $editBrd->as_is_pain_points ?? '')) }},
-        as_is_existing_systems:  {{ json_encode(old('as_is_existing_systems', $editBrd->as_is_existing_systems ?? '')) }},
-        to_be_workflow:          {{ json_encode(old('to_be_workflow', $editBrd->to_be_workflow ?? '')) }},
-        to_be_benefits:          {{ json_encode(old('to_be_benefits', $editBrd->to_be_benefits ?? '')) }},
-        kpis:                    {{ json_encode(old('kpis', $editBrd->kpis ?? '')) }},
-        priority:                '{{ old('priority', $editBrd->priority->value ?? 'medium') }}'
-    },
-    openCreate() {
-        this.mode = 'create'; this.recordId = null; this.submitted = false;
-        this.formData = {
-            project_id: '', department: '', title: '', description: '', objective: '', scope: '',
-            as_is_workflow: '', as_is_pain_points: '', as_is_existing_systems: '',
-            to_be_workflow: '', to_be_benefits: '', kpis: '', priority: 'medium'
-        };
-        this.stakeholders = [{ name: '', role: '', department: '', responsibility: '' }];
-        this.open = true;
-    },
-    openEdit(data) {
-        this.mode = 'edit'; this.recordId = data.id; this.submitted = false;
-        this.formData = data;
-        this.stakeholders = (data.stakeholders && data.stakeholders.length) ? data.stakeholders : [{ name: '', role: '', department: '', responsibility: '' }];
-        this.open = true;
-    },
-    addStakeholder() { this.stakeholders.push({ name: '', role: '', department: '', responsibility: '' }); },
-    removeStakeholder(i) { this.stakeholders.splice(i, 1); },
-    close() { this.open = false; this.submitted = false; }
-}" @panel:create.window="openCreate()">
-
+<div>
     {{-- Filters --}}
     <div class="mb-5">
         <form method="GET" action="{{ route('brds.index') }}" class="flex flex-wrap items-center gap-3">
@@ -130,7 +79,6 @@
                         'medium' => 'bg-blue-100 text-blue-700',
                         'high'   => 'bg-red-100 text-red-700',
                     ];
-                    $canEditBrd   = auth()->user()->hasPermission('edit_brds');
                     $canDeleteBrd = auth()->user()->hasPermission('delete_brds');
                 @endphp
                 @forelse($brds as $brd)
@@ -185,33 +133,12 @@
                                 </a>
                                 @endif
                                 @if($canEditBrd && $brd->status->value !== 'approved')
-                                @php
-                                    $brdStakeholdersJson = $brd->stakeholders->map(fn ($s) => [
-                                        'name' => $s->name, 'role' => $s->role, 'department' => $s->department, 'responsibility' => $s->responsibility,
-                                    ])->values();
-                                @endphp
-                                <button @click="openEdit({
-                                            id:                     {{ $brd->id }},
-                                            project_id:             '{{ $brd->project_id }}',
-                                            department:             `{{ e($brd->department ?? '') }}`,
-                                            title:                  `{{ e($brd->title) }}`,
-                                            description:            `{{ e($brd->description) }}`,
-                                            objective:              `{{ e($brd->objective ?? '') }}`,
-                                            scope:                  `{{ e($brd->scope ?? '') }}`,
-                                            as_is_workflow:         `{{ e($brd->as_is_workflow ?? '') }}`,
-                                            as_is_pain_points:      `{{ e($brd->as_is_pain_points ?? '') }}`,
-                                            as_is_existing_systems: `{{ e($brd->as_is_existing_systems ?? '') }}`,
-                                            to_be_workflow:         `{{ e($brd->to_be_workflow ?? '') }}`,
-                                            to_be_benefits:         `{{ e($brd->to_be_benefits ?? '') }}`,
-                                            kpis:                   `{{ e($brd->kpis ?? '') }}`,
-                                            priority:               '{{ $brd->priority->value }}',
-                                            stakeholders:           {{ json_encode($brdStakeholdersJson) }}
-                                        })"
-                                        class="p-1.5 rounded-lg text-slate-400 hover:text-[#E26B3D] hover:bg-[#E26B3D]/10 transition-colors" title="Edit">
+                                <a href="{{ route('brds.edit', $brd) }}"
+                                   class="p-1.5 rounded-lg text-slate-400 hover:text-[#E26B3D] hover:bg-[#E26B3D]/10 transition-colors" title="Edit">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                     </svg>
-                                </button>
+                                </a>
                                 @endif
                                 @if($canDeleteBrd)
                                 <button @click="$dispatch('confirm:delete', { action: '{{ route('brds.destroy', $brd) }}' })"
@@ -229,7 +156,7 @@
                         <td colspan="{{ $tab === 'all' ? 6 : 5 }}" class="px-5 py-14 text-center">
                             <p class="text-slate-400 font-mono text-sm">No BRDs found.</p>
                             @if(auth()->user()->hasPermission('create_brds'))
-                            <button @click="$dispatch('panel:create')" class="mt-3 text-sm text-[#E26B3D] hover:underline font-mono">Create the first one</button>
+                            <a href="{{ route('brds.create') }}" class="mt-3 inline-block text-sm text-[#E26B3D] hover:underline font-mono">Create the first one</a>
                             @endif
                         </td>
                     </tr>
@@ -240,216 +167,6 @@
         @if($brds->hasPages())
             <div class="px-5 py-3 border-t border-slate-100">{{ $brds->links() }}</div>
         @endif
-    </div>
-
-    {{-- Backdrop --}}
-    <div x-show="open" @click="close()"
-         x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150" x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
-         class="fixed inset-0 bg-black/40 z-40" style="display:none;"></div>
-
-    {{-- Slide-over --}}
-    <div x-show="open"
-         x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-x-full" x-transition:enter-end="translate-x-0"
-         x-transition:leave="transition ease-in duration-200" x-transition:leave-start="translate-x-0" x-transition:leave-end="translate-x-full"
-         class="fixed right-0 top-0 h-full w-full max-w-lg bg-white shadow-2xl z-50 flex flex-col" style="display:none;">
-
-        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200 shrink-0">
-            <h2 class="text-base font-semibold text-slate-800" x-text="mode === 'create' ? 'New BRD' : 'Edit BRD'"></h2>
-            <button @click="close()" class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-            </button>
-        </div>
-
-        @if($errors->any())
-            <div class="mx-6 mt-4 p-3 rounded-lg bg-red-50 border border-red-200">
-                <ul class="text-xs text-red-600 space-y-0.5">
-                    @foreach($errors->all() as $err)<li>{{ $err }}</li>@endforeach
-                </ul>
-            </div>
-        @endif
-
-        <form method="POST"
-              :action="mode === 'create' ? '{{ route('brds.store') }}' : '{{ url('brds') }}/' + recordId"
-              @submit="submitted = true"
-              class="flex-1 overflow-y-auto flex flex-col">
-            @csrf
-            <input type="hidden" name="_mode" :value="mode">
-            <input type="hidden" name="record_id" :value="recordId">
-
-            <div class="px-6 py-6 space-y-5 flex-1">
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Project <span class="text-red-500">*</span></label>
-                    <select name="project_id"
-                            x-effect="$el.value = formData.project_id"
-                            @change="formData.project_id = $event.target.value"
-                            class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 bg-white transition-colors"
-                            :class="submitted && !formData.project_id ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
-                        <option value="">Select project...</option>
-                        @foreach($projects as $proj)
-                            <option value="{{ $proj->id }}">{{ $proj->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Department <span class="text-slate-400 font-normal">(optional)</span></label>
-                    <input type="text" name="department" :value="formData.department"
-                           x-effect="$el.value = formData.department"
-                           @input="formData.department = $event.target.value"
-                           placeholder="Enter department"
-                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 bg-white transition-colors">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Title <span class="text-red-500">*</span></label>
-                    <input type="text" name="title" :value="formData.title"
-                           x-effect="$el.value = formData.title"
-                           class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors"
-                           :class="submitted && !formData.title ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Priority <span class="text-red-500">*</span></label>
-                    <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-1 w-fit">
-                        <input type="hidden" name="priority" :value="formData.priority">
-                        <button type="button" @click="formData.priority = 'low'"
-                                class="px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-all"
-                                :class="formData.priority === 'low' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'">Low</button>
-                        <button type="button" @click="formData.priority = 'medium'"
-                                class="px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-all"
-                                :class="formData.priority === 'medium' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'">Medium</button>
-                        <button type="button" @click="formData.priority = 'high'"
-                                class="px-3 py-1.5 rounded-md text-xs font-mono font-medium transition-all"
-                                :class="formData.priority === 'high' ? 'bg-white shadow text-slate-800' : 'text-slate-500 hover:text-slate-700'">High</button>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Description <span class="text-red-500">*</span></label>
-                    <textarea name="description" rows="4"
-                              x-effect="$el.value = formData.description"
-                              placeholder="What is this document about..."
-                              class="w-full text-sm border rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"
-                              :class="submitted && !formData.description ? 'border-red-400 ring-1 ring-red-400' : 'border-slate-300'"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Business Objective <span class="text-slate-400 font-normal">(optional)</span></label>
-                    <textarea name="objective" rows="3"
-                              x-effect="$el.value = formData.objective"
-                              placeholder="What business goal does this achieve..."
-                              class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Scope <span class="text-slate-400 font-normal">(optional)</span></label>
-                    <textarea name="scope" rows="3"
-                              x-effect="$el.value = formData.scope"
-                              placeholder="In-scope / out-of-scope items..."
-                              class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                </div>
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="block text-xs font-medium text-slate-600">Stakeholders <span class="text-slate-400 font-normal">(optional)</span></label>
-                        <button type="button" @click="addStakeholder()"
-                                class="inline-flex items-center gap-1 text-xs font-mono text-[#E26B3D] hover:text-[#c8602a] transition-colors">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            Add Stakeholder
-                        </button>
-                    </div>
-                    <div class="space-y-2">
-                        <template x-for="(sh, index) in stakeholders" :key="index">
-                            <div class="flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-stone-50">
-                                <div class="flex-1 grid grid-cols-2 gap-2">
-                                    <input type="text" :name="'stakeholders[' + index + '][name]'"
-                                           :value="sh.name" @input="sh.name = $event.target.value"
-                                           placeholder="Name"
-                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
-                                    <input type="text" :name="'stakeholders[' + index + '][role]'"
-                                           :value="sh.role" @input="sh.role = $event.target.value"
-                                           placeholder="Role"
-                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
-                                    <input type="text" :name="'stakeholders[' + index + '][department]'"
-                                           :value="sh.department" @input="sh.department = $event.target.value"
-                                           placeholder="Department"
-                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
-                                    <input type="text" :name="'stakeholders[' + index + '][responsibility]'"
-                                           :value="sh.responsibility" @input="sh.responsibility = $event.target.value"
-                                           placeholder="Responsibility"
-                                           class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 transition-colors">
-                                </div>
-                                <button type="button" @click="removeStakeholder(index)" x-show="stakeholders.length > 1"
-                                        class="p-2 text-slate-300 hover:text-red-500 transition-colors">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </template>
-                    </div>
-                </div>
-
-                <fieldset class="border-t border-slate-100 pt-5">
-                    <legend class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Current Process ("As-Is")</legend>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Workflow <span class="text-slate-400 font-normal">(optional)</span></label>
-                            <textarea name="as_is_workflow" rows="3"
-                                      x-effect="$el.value = formData.as_is_workflow"
-                                      placeholder="How is this done today..."
-                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Pain Points <span class="text-slate-400 font-normal">(optional)</span></label>
-                            <textarea name="as_is_pain_points" rows="3"
-                                      x-effect="$el.value = formData.as_is_pain_points"
-                                      placeholder="What's wrong with the current process..."
-                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Existing Systems / Tools <span class="text-slate-400 font-normal">(optional)</span></label>
-                            <textarea name="as_is_existing_systems" rows="2"
-                                      x-effect="$el.value = formData.as_is_existing_systems"
-                                      placeholder="Systems or tools currently in use..."
-                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                        </div>
-                    </div>
-                </fieldset>
-
-                <fieldset class="border-t border-slate-100 pt-5">
-                    <legend class="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Proposed Process ("To-Be")</legend>
-                    <div class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Workflow <span class="text-slate-400 font-normal">(optional)</span></label>
-                            <textarea name="to_be_workflow" rows="3"
-                                      x-effect="$el.value = formData.to_be_workflow"
-                                      placeholder="How the process should work..."
-                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-slate-600 mb-1.5">Benefits <span class="text-slate-400 font-normal">(optional)</span></label>
-                            <textarea name="to_be_benefits" rows="3"
-                                      x-effect="$el.value = formData.to_be_benefits"
-                                      placeholder="What improves once this is in place..."
-                                      class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                        </div>
-                    </div>
-                </fieldset>
-
-                <div class="border-t border-slate-100 pt-5">
-                    <label class="block text-xs font-medium text-slate-600 mb-1.5">KPIs <span class="text-slate-400 font-normal">(optional)</span></label>
-                    <textarea name="kpis" rows="3"
-                              x-effect="$el.value = formData.kpis"
-                              placeholder="How success will be measured..."
-                              class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#E26B3D]/40 focus:border-[#E26B3D] text-slate-700 placeholder-slate-400 resize-none transition-colors"></textarea>
-                </div>
-            </div>
-
-            <div class="px-6 py-4 border-t border-slate-100 shrink-0 flex gap-3">
-                <button type="submit"
-                        class="flex-1 bg-[#E26B3D] hover:bg-[#c8602a] text-white text-sm font-medium py-2.5 rounded-lg transition-colors font-mono"
-                        x-text="mode === 'create' ? 'Submit BRD' : 'Save Changes'"></button>
-                <button type="button" @click="close()"
-                        class="px-5 py-2.5 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-mono">Cancel</button>
-            </div>
-        </form>
     </div>
 
     {{-- Reject reason modal --}}

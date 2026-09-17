@@ -22,7 +22,7 @@
         </a>
         @endif
         @if($canEditBrd && $brd->status->value !== 'approved')
-        <a href="{{ route('brds.index', ['edit' => $brd->id]) }}"
+        <a href="{{ route('brds.edit', $brd) }}"
            class="inline-flex items-center gap-2 rounded-lg bg-[#E26B3D] px-4 py-2 text-sm font-medium text-white hover:bg-[#c85a2f] transition-colors">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
@@ -93,6 +93,15 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16M4 21h16M9 7h1m4 0h1M9 11h1m4 0h1M9 15h1m4 0h1"/>
                             </svg>
                             {{ $brd->department }}
+                        </span>
+                        @endif
+                        @if($brd->direct_manager)
+                        <span class="text-slate-300">·</span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                            </svg>
+                            {{ $brd->direct_manager }}
                         </span>
                         @endif
                     </div>
@@ -248,6 +257,47 @@
                             </div>
                             @if($sh->responsibility)
                             <p class="text-sm text-slate-500 mt-1">{{ $sh->responsibility }}</p>
+                            @endif
+                        </div>
+                    </div>
+                    @endforeach
+                </div>
+            </div>
+            @endif
+
+            {{-- Attachments --}}
+            @if($brd->attachments->isNotEmpty())
+            <div class="bg-white rounded-xl border border-slate-200 p-6">
+                <h2 class="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+                    <svg class="w-4 h-4 text-[#E26B3D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                    </svg>
+                    Attachments
+                    <span class="normal-case font-normal text-slate-400">({{ $brd->attachments->count() }})</span>
+                </h2>
+                <div class="divide-y divide-slate-100">
+                    @foreach($brd->attachments as $attachment)
+                    <div class="flex items-center justify-between py-3 gap-3">
+                        <div class="min-w-0">
+                            <p class="text-sm font-medium text-slate-800 truncate">{{ $attachment->file_name }}</p>
+                            <p class="text-xs text-slate-400 truncate">
+                                {{ number_format($attachment->file_size / 1024, 1) }} KB
+                                @if($attachment->user) · by {{ $attachment->user->name }}@endif
+                                · {{ $attachment->created_at->format('d M Y, H:i') }}
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <a href="{{ Storage::disk('public')->url($attachment->file_path) }}" target="_blank" download
+                               class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 transition-colors">
+                                Download
+                            </a>
+                            @if($canEditBrd && $brd->status->value !== 'approved')
+                            <button @click="$dispatch('confirm:delete', { action: '{{ route('brds.attachments.destroy', [$brd, $attachment]) }}' })"
+                                    class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
                             @endif
                         </div>
                     </div>

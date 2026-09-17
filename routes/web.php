@@ -260,12 +260,15 @@ Route::middleware(['auth', 'password.change'])->group(function () {
 
     Route::prefix('brds')->name('brds.')->group(function () {
         Route::get('/', [BrdController::class, 'index'])->name('index');
+        Route::get('/create', [BrdController::class, 'create'])->name('create');
         Route::post('/', [BrdController::class, 'store'])->name('store');
+        Route::get('/{brd}/edit', [BrdController::class, 'edit'])->name('edit');
         Route::get('/{brd}', [BrdController::class, 'show'])->name('show');
         Route::post('/{brd}', [BrdController::class, 'update'])->name('update');
         Route::post('/{brd}/approve', [BrdController::class, 'approve'])->name('approve');
         Route::post('/{brd}/reject', [BrdController::class, 'reject'])->name('reject');
         Route::get('/{brd}/export', [BrdController::class, 'export'])->name('export');
+        Route::delete('/{brd}/attachments/{attachment}', [BrdController::class, 'destroyAttachment'])->name('attachments.destroy');
         Route::delete('/{brd}', [BrdController::class, 'destroy'])->name('destroy');
     });
 

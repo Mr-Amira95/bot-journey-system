@@ -5,19 +5,24 @@ namespace App\Http\Controllers;
 use App\Enums\BrdPriority;
 use App\Enums\BrdStatus;
 use App\Models\Brd;
+use App\Models\BrdAttachment;
 use App\Models\Project;
 use App\Notifications\BrdStatusNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Mpdf\Mpdf;
 
 class BrdController extends Controller
 {
+    private const ATTACHMENT_MIMES = 'jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,zip';
+
     private function validationRules(): array
     {
         return [
             'project_id'              => ['required', 'exists:projects,id'],
             'department'              => ['nullable', 'string', 'max:255'],
+            'direct_manager'          => ['nullable', 'string', 'max:255'],
             'title'                   => ['required', 'string', 'max:255'],
             'description'             => ['required', 'string'],
             'objective'               => ['nullable', 'string'],
@@ -34,6 +39,8 @@ class BrdController extends Controller
             'stakeholders.*.role'           => ['nullable', 'string', 'max:255'],
             'stakeholders.*.department'     => ['nullable', 'string', 'max:255'],
             'stakeholders.*.responsibility' => ['nullable', 'string'],
+            'attachments'                   => ['nullable', 'array'],
+            'attachments.*'                 => ['file', 'max:20480', 'mimes:' . self::ATTACHMENT_MIMES],
         ];
     }
 
@@ -71,17 +78,31 @@ class BrdController extends Controller
         $canEditBrd = auth()->user()->hasPermission('edit_brds');
         $canExport  = auth()->user()->hasPermission('export_brds');
 
-        $editBrd = null;
-        if ($canEditBrd && $request->filled('edit')) {
-            $editBrd = Brd::with('stakeholders')->find($request->get('edit'));
-            if ($editBrd && $tab === 'mine' && $editBrd->created_by !== auth()->id()) {
-                $editBrd = null;
-            }
-        }
-
         return view('brds.index', compact(
-            'brds', 'projects', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canExport', 'editBrd'
+            'brds', 'projects', 'statuses', 'priorities', 'tab', 'canViewAll', 'canApprove', 'canEditBrd', 'canExport'
         ));
+    }
+
+    public function create()
+    {
+        abort_unless(auth()->user()->hasPermission('create_brds'), 403);
+        $projects = Project::orderBy('name')->get();
+
+        return view('brds.create', compact('projects'));
+    }
+
+    public function edit(Brd $brd)
+    {
+        abort_unless(auth()->user()->hasPermission('edit_brds'), 403);
+        abort_if($brd->status === BrdStatus::Approved, 403, 'Approved BRDs cannot be edited.');
+
+        $canViewAll = auth()->user()->hasPermission('view_all_brds');
+        abort_unless($canViewAll || $brd->created_by === auth()->id(), 403);
+
+        $brd->load(['stakeholders', 'attachments.user']);
+        $projects = Project::orderBy('name')->get();
+
+        return view('brds.edit', compact('brd', 'projects'));
     }
 
     public function show(Brd $brd)
@@ -90,7 +111,7 @@ class BrdController extends Controller
         $canViewAll = auth()->user()->hasPermission('view_all_brds');
         abort_unless($canViewAll || $brd->created_by === auth()->id(), 403);
 
-        $brd->load(['project', 'creator', 'updater', 'approver', 'tasks', 'stakeholders']);
+        $brd->load(['project', 'creator', 'updater', 'approver', 'tasks', 'stakeholders', 'attachments.user']);
 
         $canApprove = auth()->user()->hasPermission('approve_brds');
         $canEditBrd = auth()->user()->hasPermission('edit_brds');
@@ -106,7 +127,8 @@ class BrdController extends Controller
         $data = $request->validate($this->validationRules());
 
         $stakeholders = $this->stakeholderRows($data);
-        unset($data['stakeholders']);
+        $attachments  = $data['attachments'] ?? [];
+        unset($data['stakeholders'], $data['attachments']);
 
         $brd = Brd::create(array_merge($data, [
             'created_by' => auth()->id(),
@@ -117,7 +139,11 @@ class BrdController extends Controller
             $brd->stakeholders()->create($row);
         }
 
-        return back()->with('success', 'BRD created and submitted for approval.');
+        foreach ($attachments as $file) {
+            $this->createAttachment($brd, $file);
+        }
+
+        return redirect()->route('brds.show', $brd)->with('success', 'BRD created and submitted for approval.');
     }
 
     public function update(Request $request, Brd $brd)
@@ -128,7 +154,8 @@ class BrdController extends Controller
         $data = $request->validate($this->validationRules());
 
         $stakeholders = $this->stakeholderRows($data);
-        unset($data['stakeholders']);
+        $attachments  = $data['attachments'] ?? [];
+        unset($data['stakeholders'], $data['attachments']);
 
         $brd->update(array_merge($data, [
             'updated_by'        => auth()->id(),
@@ -143,7 +170,11 @@ class BrdController extends Controller
             $brd->stakeholders()->create($row);
         }
 
-        return back()->with('success', 'BRD updated and resubmitted for approval.');
+        foreach ($attachments as $file) {
+            $this->createAttachment($brd, $file);
+        }
+
+        return redirect()->route('brds.show', $brd)->with('success', 'BRD updated and resubmitted for approval.');
     }
 
     public function approve(Brd $brd)
@@ -190,7 +221,47 @@ class BrdController extends Controller
         abort_unless(auth()->user()->hasPermission('delete_brds'), 403);
         $brd->delete();
 
-        return back()->with('success', 'BRD deleted.');
+        return redirect()->route('brds.index')->with('success', 'BRD deleted.');
+    }
+
+    public function destroyAttachment(Brd $brd, BrdAttachment $attachment)
+    {
+        abort_unless(auth()->user()->hasPermission('edit_brds'), 403);
+        abort_if($brd->status === BrdStatus::Approved, 403, 'Approved BRDs cannot be edited.');
+        abort_if($attachment->brd_id !== $brd->id, 403);
+
+        Storage::disk('public')->delete($attachment->file_path);
+        $attachment->delete();
+
+        return back()->with('success', 'Attachment deleted.');
+    }
+
+    private function createAttachment(Brd $brd, $file): BrdAttachment
+    {
+        $path = $file->store('brd-attachments/' . $brd->id, 'public');
+
+        return BrdAttachment::create([
+            'brd_id'    => $brd->id,
+            'user_id'   => auth()->id(),
+            'file_name' => $file->getClientOriginalName(),
+            'file_path' => $path,
+            'file_type' => $this->attachmentType($file->getClientOriginalExtension()),
+            'file_size' => $file->getSize(),
+        ]);
+    }
+
+    private function attachmentType(string $extension): string
+    {
+        $extension = strtolower($extension);
+
+        return match (true) {
+            in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'], true) => 'photo',
+            $extension === 'pdf'                                             => 'pdf',
+            in_array($extension, ['doc', 'docx'], true)                      => 'word',
+            in_array($extension, ['xls', 'xlsx'], true)                      => 'excel',
+            in_array($extension, ['ppt', 'pptx'], true)                      => 'powerpoint',
+            default                                                          => 'file',
+        };
     }
 
     public function export(Brd $brd)
