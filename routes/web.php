@@ -268,6 +268,8 @@ Route::middleware(['auth', 'password.change'])->group(function () {
         Route::post('/{brd}/approve', [BrdController::class, 'approve'])->name('approve');
         Route::post('/{brd}/reject', [BrdController::class, 'reject'])->name('reject');
         Route::get('/{brd}/export', [BrdController::class, 'export'])->name('export');
+        Route::post('/{brd}/ai-canvas', [BrdController::class, 'generateAiCanvas'])->name('ai-canvas.generate');
+        Route::get('/{brd}/ai-canvas', [BrdController::class, 'exportAiCanvas'])->name('ai-canvas.export');
         Route::post('/{brd}/share', [BrdController::class, 'enableShare'])->name('share.enable');
         Route::post('/{brd}/share/regenerate', [BrdController::class, 'regenerateShare'])->name('share.regenerate');
         Route::post('/{brd}/share/disable', [BrdController::class, 'disableShare'])->name('share.disable');

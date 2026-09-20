@@ -40,4 +40,9 @@ return [
         'certificate' => env('AGORA_APP_CERTIFICATE'),
     ],
 
+    'claude' => [
+        'key'   => env('Claude_API_KEY'),
+        'model' => env('CLAUDE_MODEL', 'claude-sonnet-5'),
+    ],
+
 ];

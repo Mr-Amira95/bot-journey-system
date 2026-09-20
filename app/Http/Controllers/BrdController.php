@@ -8,11 +8,13 @@ use App\Models\Brd;
 use App\Models\BrdAttachment;
 use App\Models\Project;
 use App\Notifications\BrdStatusNotification;
+use App\Services\AiCanvasService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Mpdf\Mpdf;
+use Throwable;
 
 class BrdController extends Controller
 {
@@ -306,6 +308,52 @@ class BrdController extends Controller
         abort_unless(auth()->user()->hasPermission('export_brds'), 403);
         $brd->load(['project', 'creator', 'approver', 'stakeholders']);
 
+        $pdf = $this->renderPdf('brds.pdf', ['brd' => $brd]);
+
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="brd-' . $brd->id . '.pdf"',
+        ]);
+    }
+
+    public function generateAiCanvas(Brd $brd, AiCanvasService $canvas)
+    {
+        abort_unless(auth()->user()->hasPermission('export_brds'), 403);
+        $brd->load(['project', 'stakeholders']);
+
+        try {
+            $data = $canvas->generate($brd);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->with('error', 'Could not generate the AI Canvas: ' . $e->getMessage());
+        }
+
+        $brd->update([
+            'ai_canvas_data'         => $data,
+            'ai_canvas_generated_at' => now(),
+        ]);
+
+        return back()->with('success', 'AI Canvas generated.');
+    }
+
+    public function exportAiCanvas(Brd $brd)
+    {
+        abort_unless(auth()->user()->hasPermission('export_brds'), 403);
+        abort_if(empty($brd->ai_canvas_data), 404, 'No AI Canvas has been generated for this BRD yet.');
+
+        $brd->load('project');
+
+        $pdf = $this->renderPdf('brds.canvas-pdf', ['brd' => $brd, 'canvas' => $brd->ai_canvas_data]);
+
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="ai-canvas-brd-' . $brd->id . '.pdf"',
+        ]);
+    }
+
+    private function renderPdf(string $view, array $data): string
+    {
         $tempDir = storage_path('app/mpdf-temp');
         if (! is_dir($tempDir)) {
             mkdir($tempDir, 0755, true);
@@ -320,11 +368,8 @@ class BrdController extends Controller
             'tempDir'          => $tempDir,
         ]);
 
-        $mpdf->WriteHTML(view('brds.pdf', ['brd' => $brd])->render());
+        $mpdf->WriteHTML(view($view, $data)->render());
 
-        return response($mpdf->Output('', 'S'), 200, [
-            'Content-Type'        => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="brd-' . $brd->id . '.pdf"',
-        ]);
+        return $mpdf->Output('', 'S');
     }
 }

@@ -36,14 +36,18 @@ class Brd extends Model
         'approved_at',
         'rejection_reason',
         'share_token',
+        'ai_canvas_data',
+        'ai_canvas_generated_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'status'      => BrdStatus::class,
-            'priority'    => BrdPriority::class,
-            'approved_at' => 'datetime',
+            'status'                 => BrdStatus::class,
+            'priority'               => BrdPriority::class,
+            'approved_at'            => 'datetime',
+            'ai_canvas_data'         => 'array',
+            'ai_canvas_generated_at' => 'datetime',
         ];
     }
 
