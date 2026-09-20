@@ -83,6 +83,7 @@ class SuperAdminSeeder extends Seeder
             ['slug' => 'view_all_brds',              'name' => 'View All BRDs',                    'module' => 'oversight'],
             ['slug' => 'approve_brds',               'name' => 'Approve BRDs',                     'module' => 'oversight'],
             ['slug' => 'export_brds',                'name' => 'Export BRDs',                      'module' => 'oversight'],
+            ['slug' => 'share_brds',                 'name' => 'Share BRDs',                       'module' => 'oversight'],
         ];
 
         foreach ($oversight as $item) {

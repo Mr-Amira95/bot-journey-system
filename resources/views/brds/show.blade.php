@@ -54,6 +54,14 @@
 <div x-data="{
         confirmDelete() { $dispatch('confirm:delete', { action: '{{ route('brds.destroy', $brd) }}' }); },
         showReject: false,
+        showShare: false,
+        copied: false,
+        shareUrl: '{{ $brd->share_token ? route('brds.public-show', $brd->share_token) : '' }}',
+        copyShareUrl() {
+            navigator.clipboard.writeText(this.shareUrl);
+            this.copied = true;
+            setTimeout(() => this.copied = false, 2000);
+        },
      }"
      class="max-w-6xl">
 
@@ -410,6 +418,54 @@
                 </div>
                 @endif
             </div>
+
+            @if($canShare)
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+                <h2 class="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                    <svg class="w-4 h-4 text-[#E26B3D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342a4 4 0 010-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 9.632a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684zm0-9.632a3 3 0 105.368-2.684 3 3 0 00-5.368 2.684z"/>
+                    </svg>
+                    Public Link
+                </h2>
+                <p class="text-xs text-slate-400 mb-4">Anyone with this link can view this BRD — no login required.</p>
+
+                @if($brd->share_token)
+                <div class="space-y-3">
+                    <div class="flex items-center gap-2">
+                        <input type="text" readonly x-model="shareUrl" @click="$event.target.select()"
+                               class="flex-1 min-w-0 text-xs font-mono border border-slate-300 rounded-lg px-2.5 py-2 text-slate-600 bg-stone-50 focus:outline-none">
+                        <button @click="copyShareUrl()"
+                                class="shrink-0 px-3 py-2 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors"
+                                x-text="copied ? 'Copied!' : 'Copy'"></button>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <form method="POST" action="{{ route('brds.share.regenerate', $brd) }}" class="flex-1">
+                            @csrf
+                            <button type="submit" onclick="return confirm('Regenerate the link? The current link will stop working immediately.')"
+                                    class="w-full text-xs font-medium text-slate-600 hover:text-slate-800 hover:underline">
+                                Regenerate
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('brds.share.disable', $brd) }}" class="flex-1 text-right">
+                            @csrf
+                            <button type="submit" onclick="return confirm('Disable the public link? It will stop working immediately.')"
+                                    class="text-xs font-medium text-red-600 hover:text-red-700 hover:underline">
+                                Disable Link
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                @else
+                <form method="POST" action="{{ route('brds.share.enable', $brd) }}">
+                    @csrf
+                    <button type="submit"
+                            class="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-stone-50 transition-colors">
+                        Enable Public Link
+                    </button>
+                </form>
+                @endif
+            </div>
+            @endif
         </div>
     </div>
 

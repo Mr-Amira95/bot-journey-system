@@ -35,6 +35,7 @@ class Brd extends Model
         'approved_by',
         'approved_at',
         'rejection_reason',
+        'share_token',
     ];
 
     protected function casts(): array

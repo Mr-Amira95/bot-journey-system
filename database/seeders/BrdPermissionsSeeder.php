@@ -18,6 +18,7 @@ class BrdPermissionsSeeder extends Seeder
             ['name' => 'Approve BRDs',    'slug' => 'approve_brds',    'module' => 'brds'],
             ['name' => 'Delete BRDs',     'slug' => 'delete_brds',     'module' => 'brds'],
             ['name' => 'Export BRDs',     'slug' => 'export_brds',     'module' => 'brds'],
+            ['name' => 'Share BRDs',      'slug' => 'share_brds',      'module' => 'brds'],
         ];
 
         foreach ($permissions as $p) {
@@ -34,7 +35,7 @@ class BrdPermissionsSeeder extends Seeder
         // Employee can create and view/export their own BRDs, but not approve them
         $employee = Role::where('slug', 'employee')->first();
         if ($employee) {
-            $employeeSlugs = ['view_brds', 'create_brds', 'edit_brds', 'export_brds'];
+            $employeeSlugs = ['view_brds', 'create_brds', 'edit_brds', 'export_brds', 'share_brds'];
             $ids = Permission::whereIn('slug', $employeeSlugs)->pluck('id');
             $employee->permissions()->syncWithoutDetaching($ids);
         }

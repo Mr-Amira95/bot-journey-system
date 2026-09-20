@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Notifications\BrdStatusNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Mpdf\Mpdf;
 
@@ -117,8 +118,9 @@ class BrdController extends Controller
         $canEditBrd = auth()->user()->hasPermission('edit_brds');
         $canDeleteBrd = auth()->user()->hasPermission('delete_brds');
         $canExport  = auth()->user()->hasPermission('export_brds');
+        $canShare   = auth()->user()->hasPermission('share_brds');
 
-        return view('brds.show', compact('brd', 'canApprove', 'canEditBrd', 'canDeleteBrd', 'canExport'));
+        return view('brds.show', compact('brd', 'canApprove', 'canEditBrd', 'canDeleteBrd', 'canExport', 'canShare'));
     }
 
     public function store(Request $request)
@@ -222,6 +224,41 @@ class BrdController extends Controller
         $brd->delete();
 
         return redirect()->route('brds.index')->with('success', 'BRD deleted.');
+    }
+
+    public function enableShare(Brd $brd)
+    {
+        abort_unless(auth()->user()->hasPermission('share_brds'), 403);
+
+        if (! $brd->share_token) {
+            $brd->update(['share_token' => Str::random(40)]);
+        }
+
+        return back()->with('success', 'Public link enabled.');
+    }
+
+    public function regenerateShare(Brd $brd)
+    {
+        abort_unless(auth()->user()->hasPermission('share_brds'), 403);
+        $brd->update(['share_token' => Str::random(40)]);
+
+        return back()->with('success', 'Public link regenerated. The previous link no longer works.');
+    }
+
+    public function disableShare(Brd $brd)
+    {
+        abort_unless(auth()->user()->hasPermission('share_brds'), 403);
+        $brd->update(['share_token' => null]);
+
+        return back()->with('success', 'Public link disabled.');
+    }
+
+    public function publicShow(string $token)
+    {
+        $brd = Brd::where('share_token', $token)->firstOrFail();
+        $brd->load(['project', 'creator', 'stakeholders', 'attachments']);
+
+        return view('brds.public-show', compact('brd'));
     }
 
     public function destroyAttachment(Brd $brd, BrdAttachment $attachment)

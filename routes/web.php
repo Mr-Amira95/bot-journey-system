@@ -268,6 +268,9 @@ Route::middleware(['auth', 'password.change'])->group(function () {
         Route::post('/{brd}/approve', [BrdController::class, 'approve'])->name('approve');
         Route::post('/{brd}/reject', [BrdController::class, 'reject'])->name('reject');
         Route::get('/{brd}/export', [BrdController::class, 'export'])->name('export');
+        Route::post('/{brd}/share', [BrdController::class, 'enableShare'])->name('share.enable');
+        Route::post('/{brd}/share/regenerate', [BrdController::class, 'regenerateShare'])->name('share.regenerate');
+        Route::post('/{brd}/share/disable', [BrdController::class, 'disableShare'])->name('share.disable');
         Route::delete('/{brd}/attachments/{attachment}', [BrdController::class, 'destroyAttachment'])->name('attachments.destroy');
         Route::delete('/{brd}', [BrdController::class, 'destroy'])->name('destroy');
     });
@@ -309,5 +312,8 @@ Route::middleware(['auth', 'password.change'])->group(function () {
         Route::get('/project/{project}', [ReportController::class, 'projectPdf'])->name('project');
     });
 });
+
+// ── Public (no login required) ───────────────────────────────────────────
+Route::get('/share/brd/{token}', [BrdController::class, 'publicShow'])->name('brds.public-show');
 
 Route::redirect('/', '/tasks');
