@@ -59,7 +59,49 @@ class AiCanvasService
             throw new RuntimeException('Claude did not return a structured AI Canvas.');
         }
 
-        return $toolUse['input'];
+        return $this->normalize($toolUse['input']);
+    }
+
+    /**
+     * Claude's tool-use output isn't strictly schema-validated, so it can occasionally send a
+     * string where an array was requested (e.g. a single data source instead of a one-item list).
+     * Coerce fields into the shape the PDF template expects rather than trusting the raw output.
+     */
+    private function normalize(array $data): array
+    {
+        foreach (['data_sources', 'roi_highlights', 'assumptions_risks', 'next_steps'] as $field) {
+            $data[$field] = $this->toList($data[$field] ?? null);
+        }
+
+        $data['kpis'] = collect($this->toList($data['kpis'] ?? null))
+            ->map(function ($kpi) {
+                if (is_array($kpi)) {
+                    return [
+                        'metric' => (string) ($kpi['metric'] ?? ''),
+                        'target' => (string) ($kpi['target'] ?? ''),
+                    ];
+                }
+
+                return ['metric' => (string) $kpi, 'target' => ''];
+            })
+            ->filter(fn ($kpi) => $kpi['metric'] !== '')
+            ->values()
+            ->all();
+
+        return $data;
+    }
+
+    private function toList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values($value);
+        }
+
+        if (is_string($value) && trim($value) !== '') {
+            return array_values(array_filter(array_map('trim', preg_split('/\r\n|\r|\n|;/', $value))));
+        }
+
+        return [];
     }
 
     private function systemPrompt(): string

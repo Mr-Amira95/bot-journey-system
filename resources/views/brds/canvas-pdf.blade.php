@@ -44,6 +44,17 @@
 </head>
 <body>
 
+@php
+    // Defensive normalization: Claude's tool-use output isn't schema-enforced, so older
+    // stored canvases (generated before the service-side normalization) may hold a plain
+    // string where a list was expected.
+    foreach (['data_sources', 'roi_highlights', 'assumptions_risks', 'next_steps'] as $field) {
+        $value = $canvas[$field] ?? null;
+        $canvas[$field] = is_array($value) ? array_values($value) : (is_string($value) && trim($value) !== '' ? [$value] : []);
+    }
+    $canvas['kpis'] = is_array($canvas['kpis'] ?? null) ? $canvas['kpis'] : [];
+@endphp
+
 <div class="header">
   <div class="eyebrow">AI Canvas &mdash; Al Tanfeethi</div>
   <h1>{{ $canvas['use_case_name'] ?? $brd->title }}</h1>
